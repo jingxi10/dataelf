@@ -1,0 +1,330 @@
+/* Element Plus 主题定制 */
+@import './variables.css';
+
+/* 覆盖 Element Plus 的 CSS 变量 */
+:root {
+  /* 主色调 */
+  --el-color-primary: var(--color-primary);
+  --el-color-primary-light-3: var(--color-primary-lighter);
+  --el-color-primary-light-5: var(--color-primary-light);
+  --el-color-primary-light-7: #93c5fd;
+  --el-color-primary-light-8: #bfdbfe;
+  --el-color-primary-light-9: #dbeafe;
+  --el-color-primary-dark-2: var(--color-primary-dark);
+  
+  /* 成功色 */
+  --el-color-success: var(--color-success);
+  --el-color-success-light-3: var(--color-success-light);
+  --el-color-success-light-5: #6ee7b7;
+  --el-color-success-light-7: #a7f3d0;
+  --el-color-success-light-8: #d1fae5;
+  --el-color-success-light-9: #ecfdf5;
+  
+  /* 警告色 */
+  --el-color-warning: var(--color-warning);
+  --el-color-warning-light-3: var(--color-warning-light);
+  --el-color-warning-light-5: #fcd34d;
+  --el-color-warning-light-7: #fde68a;
+  --el-color-warning-light-8: #fef3c7;
+  --el-color-warning-light-9: #fffbeb;
+  
+  /* 错误色 */
+  --el-color-error: var(--color-error);
+  --el-color-error-light-3: var(--color-error-light);
+  --el-color-error-light-5: #fca5a5;
+  --el-color-error-light-7: #fecaca;
+  --el-color-error-light-8: #fee2e2;
+  --el-color-error-light-9: #fef2f2;
+  
+  /* 信息色 */
+  --el-color-info: var(--color-info);
+  --el-color-info-light-3: var(--color-info-light);
+  --el-color-info-light-5: #93c5fd;
+  --el-color-info-light-7: #bfdbfe;
+  --el-color-info-light-8: #dbeafe;
+  --el-color-info-light-9: #eff6ff;
+  
+  /* 文本颜色 */
+  --el-text-color-primary: var(--color-text-primary);
+  --el-text-color-regular: var(--color-text-secondary);
+  --el-text-color-secondary: var(--color-text-tertiary);
+  --el-text-color-placeholder: var(--color-text-disabled);
+  --el-text-color-disabled: var(--color-text-disabled);
+  
+  /* 边框颜色 */
+  --el-border-color: var(--color-border-base);
+  --el-border-color-light: var(--color-border-light);
+  --el-border-color-lighter: var(--color-gray-100);
+  --el-border-color-extra-light: var(--color-gray-50);
+  --el-border-color-dark: var(--color-border-dark);
+  --el-border-color-darker: var(--color-gray-400);
+  
+  /* 背景色 */
+  --el-bg-color: var(--color-bg-primary);
+  --el-bg-color-page: var(--color-bg-secondary);
+  --el-bg-color-overlay: var(--color-bg-tertiary);
+  
+  /* 填充色 */
+  --el-fill-color: var(--color-gray-100);
+  --el-fill-color-light: var(--color-gray-50);
+  --el-fill-color-lighter: var(--color-bg-secondary);
+  --el-fill-color-extra-light: var(--color-bg-primary);
+  --el-fill-color-dark: var(--color-gray-200);
+  --el-fill-color-darker: var(--color-gray-300);
+  --el-fill-color-blank: var(--color-bg-primary);
+  
+  /* 字体 */
+  --el-font-family: var(--font-family-base);
+  --el-font-size-extra-large: var(--font-size-xl);
+  --el-font-size-large: var(--font-size-lg);
+  --el-font-size-medium: var(--font-size-base);
+  --el-font-size-base: var(--font-size-sm);
+  --el-font-size-small: var(--font-size-xs);
+  --el-font-size-extra-small: 12px;
+  
+  /* 圆角 */
+  --el-border-radius-base: var(--radius-base);
+  --el-border-radius-small: var(--radius-sm);
+  --el-border-radius-round: var(--radius-full);
+  --el-border-radius-circle: 50%;
+  
+  /* 阴影 */
+  --el-box-shadow: var(--shadow-base);
+  --el-box-shadow-light: var(--shadow-sm);
+  --el-box-shadow-lighter: 0 0 6px 0 rgba(0, 0, 0, 0.04);
+  --el-box-shadow-dark: var(--shadow-md);
+  
+  /* 过渡 */
+  --el-transition-duration: var(--transition-base);
+  --el-transition-duration-fast: var(--transition-fast);
+  
+  /* 组件尺寸 */
+  --el-component-size-large: 40px;
+  --el-component-size: 36px;
+  --el-component-size-small: 32px;
+}
+
+/* 卡片组件定制 */
+.el-card {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-base);
+}
+
+.el-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.el-card__header {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.el-card__body {
+  padding: var(--spacing-lg);
+}
+
+/* 按钮组件定制 */
+.el-button {
+  border-radius: var(--radius-base);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+}
+
+.el-button--primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.el-button--primary:hover {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary-light);
+}
+
+.el-button--primary:active {
+  background-color: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+/* 输入框组件定制 */
+.el-input__wrapper {
+  border-radius: var(--radius-base);
+  box-shadow: 0 0 0 1px var(--color-border-base) inset;
+  transition: box-shadow var(--transition-fast);
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--color-border-dark) inset;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
+}
+
+/* 表格组件定制 */
+.el-table {
+  border-radius: var(--radius-base);
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.el-table tr:hover > td {
+  background-color: var(--color-bg-secondary);
+}
+
+/* 对话框组件定制 */
+.el-dialog {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+}
+
+.el-dialog__header {
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-bottom: 1px solid var(--color-border-base);
+}
+
+.el-dialog__body {
+  padding: var(--spacing-xl);
+}
+
+.el-dialog__footer {
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-top: 1px solid var(--color-border-base);
+}
+
+/* 消息提示组件定制 */
+.el-message {
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+/* 通知组件定制 */
+.el-notification {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-lg);
+}
+
+/* 下拉菜单组件定制 */
+.el-dropdown-menu {
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-sm) 0;
+}
+
+.el-dropdown-menu__item {
+  padding: var(--spacing-sm) var(--spacing-md);
+  transition: background-color var(--transition-fast);
+}
+
+.el-dropdown-menu__item:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+/* 标签组件定制 */
+.el-tag {
+  border-radius: var(--radius-base);
+  padding: 4px 12px;
+  font-weight: var(--font-weight-medium);
+}
+
+/* 分页组件定制 */
+.el-pagination {
+  gap: var(--spacing-sm);
+}
+
+.el-pagination button,
+.el-pager li {
+  border-radius: var(--radius-base);
+  transition: all var(--transition-fast);
+}
+
+/* 加载组件定制 */
+.el-loading-mask {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+/* 表单组件定制 */
+.el-form-item__label {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.el-form-item__error {
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
+}
+
+/* 选择器组件定制 */
+.el-select-dropdown {
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-md);
+}
+
+.el-select-dropdown__item {
+  padding: var(--spacing-sm) var(--spacing-md);
+  transition: background-color var(--transition-fast);
+}
+
+.el-select-dropdown__item:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+/* 开关组件定制 */
+.el-switch {
+  --el-switch-on-color: var(--color-primary);
+}
+
+/* 滑块组件定制 */
+.el-slider__button {
+  border: 2px solid var(--color-primary);
+}
+
+/* 步骤条组件定制 */
+.el-step__title {
+  font-weight: var(--font-weight-medium);
+}
+
+/* 时间线组件定制 */
+.el-timeline-item__timestamp {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+/* 徽章组件定制 */
+.el-badge__content {
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 头像组件定制 */
+.el-avatar {
+  border-radius: var(--radius-full);
+}
+
+/* 空状态组件定制 */
+.el-empty__description {
+  color: var(--color-text-tertiary);
+}
+
+/* 结果组件定制 */
+.el-result__title {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 骨架屏组件定制 */
+.el-skeleton__item {
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-100) 25%,
+    var(--color-gray-50) 37%,
+    var(--color-gray-100) 63%
+  );
+}

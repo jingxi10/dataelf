@@ -1,0 +1,37 @@
+# robots.txt for 数流精灵 (AI Data Platform)
+# 优化AI爬虫访问，确保AI能高效抓取结构化数据
+
+User-agent: *
+
+# 允许AI访问结构化数据API
+Allow: /api/ai/
+Allow: /api/public/
+
+# 允许访问已发布内容
+Allow: /content/
+Allow: /data/
+
+# 禁止访问用户相关页面
+Disallow: /user/
+Disallow: /account/
+Disallow: /profile/
+Disallow: /favorites/
+Disallow: /notifications/
+
+# 禁止访问用户API
+Disallow: /api/user/
+Disallow: /api/auth/
+
+# 禁止访问管理后台
+Disallow: /admin/
+Disallow: /api/admin/
+
+# 禁止访问编辑器
+Disallow: /editor/
+
+# 禁止访问登录注册页面
+Disallow: /login
+Disallow: /register
+
+# Sitemap位置
+Sitemap: https://yourdomain.com/api/ai/sitemap

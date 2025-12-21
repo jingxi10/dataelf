@@ -1,0 +1,358 @@
+/* 响应式布局样式 */
+@import './variables.css';
+
+/* 页面布局 */
+.page-layout {
+  min-height: 100vh;
+  background-color: var(--color-bg-secondary);
+}
+
+.page-header {
+  background-color: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border-base);
+  padding: var(--spacing-md) 0;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-index-sticky);
+  box-shadow: var(--shadow-sm);
+}
+
+.page-content {
+  padding: var(--spacing-lg) 0;
+}
+
+.page-footer {
+  background-color: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border-base);
+  padding: var(--spacing-xl) 0;
+  margin-top: var(--spacing-3xl);
+}
+
+/* 网格系统 */
+.grid {
+  display: grid;
+  gap: var(--spacing-lg);
+}
+
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* 卡片网格 */
+.card-grid {
+  display: grid;
+  gap: var(--spacing-lg);
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+/* 内容区域 */
+.content-wrapper {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+/* 侧边栏布局 */
+.sidebar-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.sidebar {
+  background-color: var(--color-bg-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.main-content {
+  flex: 1;
+}
+
+/* 320px - 移动设备 */
+@media (min-width: 320px) {
+  .content-wrapper {
+    padding: 0 var(--spacing-md);
+  }
+  
+  .page-content {
+    padding: var(--spacing-md) 0;
+  }
+  
+  .card-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--spacing-md);
+  }
+  
+  /* 移动端隐藏 */
+  .hide-mobile {
+    display: none;
+  }
+  
+  /* 移动端显示 */
+  .show-mobile {
+    display: block;
+  }
+}
+
+/* 768px - 平板 */
+@media (min-width: 768px) {
+  .content-wrapper {
+    padding: 0 var(--spacing-lg);
+  }
+  
+  .page-content {
+    padding: var(--spacing-xl) 0;
+  }
+  
+  .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-lg);
+  }
+  
+  .grid-cols-sm-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .grid-cols-sm-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  
+  /* 侧边栏布局 - 平板 */
+  .sidebar-layout {
+    flex-direction: row;
+  }
+  
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+  }
+  
+  /* 平板端隐藏 */
+  .hide-tablet {
+    display: none;
+  }
+  
+  /* 平板端显示 */
+  .show-tablet {
+    display: block;
+  }
+  
+  .hide-mobile {
+    display: block;
+  }
+  
+  .show-mobile {
+    display: none;
+  }
+}
+
+/* 1024px - 桌面 */
+@media (min-width: 1024px) {
+  .content-wrapper {
+    padding: 0 var(--spacing-xl);
+  }
+  
+  .page-content {
+    padding: var(--spacing-2xl) 0;
+  }
+  
+  .card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  
+  .grid-cols-md-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .grid-cols-md-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  
+  .grid-cols-md-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  
+  /* 侧边栏布局 - 桌面 */
+  .sidebar {
+    width: 320px;
+  }
+  
+  /* 桌面端隐藏 */
+  .hide-desktop {
+    display: none;
+  }
+  
+  /* 桌面端显示 */
+  .show-desktop {
+    display: block;
+  }
+  
+  .hide-tablet {
+    display: block;
+  }
+  
+  .show-tablet {
+    display: none;
+  }
+}
+
+/* 1440px - 大屏幕 */
+@media (min-width: 1440px) {
+  .content-wrapper {
+    padding: 0 var(--spacing-2xl);
+  }
+  
+  .page-content {
+    padding: var(--spacing-3xl) 0;
+  }
+  
+  .card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  
+  .grid-cols-lg-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  
+  .grid-cols-lg-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  
+  .grid-cols-lg-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  
+  /* 侧边栏布局 - 大屏幕 */
+  .sidebar {
+    width: 360px;
+  }
+  
+  /* 大屏幕隐藏 */
+  .hide-large {
+    display: none;
+  }
+  
+  /* 大屏幕显示 */
+  .show-large {
+    display: block;
+  }
+}
+
+/* 响应式文本大小 */
+@media (max-width: 767px) {
+  .text-responsive-xl {
+    font-size: var(--font-size-2xl);
+  }
+  
+  .text-responsive-lg {
+    font-size: var(--font-size-xl);
+  }
+  
+  .text-responsive-base {
+    font-size: var(--font-size-base);
+  }
+}
+
+@media (min-width: 768px) {
+  .text-responsive-xl {
+    font-size: var(--font-size-3xl);
+  }
+  
+  .text-responsive-lg {
+    font-size: var(--font-size-2xl);
+  }
+  
+  .text-responsive-base {
+    font-size: var(--font-size-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  .text-responsive-xl {
+    font-size: var(--font-size-4xl);
+  }
+  
+  .text-responsive-lg {
+    font-size: var(--font-size-3xl);
+  }
+  
+  .text-responsive-base {
+    font-size: var(--font-size-xl);
+  }
+}
+
+/* 响应式间距 */
+@media (max-width: 767px) {
+  .spacing-responsive-sm {
+    padding: var(--spacing-sm);
+  }
+  
+  .spacing-responsive-md {
+    padding: var(--spacing-md);
+  }
+  
+  .spacing-responsive-lg {
+    padding: var(--spacing-lg);
+  }
+}
+
+@media (min-width: 768px) {
+  .spacing-responsive-sm {
+    padding: var(--spacing-md);
+  }
+  
+  .spacing-responsive-md {
+    padding: var(--spacing-lg);
+  }
+  
+  .spacing-responsive-lg {
+    padding: var(--spacing-xl);
+  }
+}
+
+@media (min-width: 1024px) {
+  .spacing-responsive-sm {
+    padding: var(--spacing-lg);
+  }
+  
+  .spacing-responsive-md {
+    padding: var(--spacing-xl);
+  }
+  
+  .spacing-responsive-lg {
+    padding: var(--spacing-2xl);
+  }
+}
+
+/* 打印样式 */
+@media print {
+  .page-header,
+  .page-footer,
+  .sidebar,
+  .no-print {
+    display: none !important;
+  }
+  
+  .page-content {
+    padding: 0;
+  }
+  
+  .card {
+    box-shadow: none;
+    border: 1px solid var(--color-border-base);
+  }
+}

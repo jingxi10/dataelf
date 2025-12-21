@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+backend/target/
+frontend/dist/
+*.class
+*.jar
+*.war
+
+# Logs
+logs/
+backend/logs/
+frontend/logs/
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Uploads (user generated content)
+uploads/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# JQWik
+.jqwik-database
+backend/.jqwik-database
