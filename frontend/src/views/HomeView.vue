@@ -5,7 +5,7 @@
       <div class="header-container">
         <div class="logo" @click="goHome">
           <img v-if="logoUrl" :src="logoUrl" alt="数流精灵" class="logo-image" />
-          <span v-else class="logo-text">数流精灵</span>
+          <span class="logo-text">{{ siteName }}</span>
         </div>
         <nav class="nav">
           <router-link v-if="isAuthenticated" to="/editor" class="nav-link">创建内容</router-link>
@@ -17,7 +17,35 @@
             <router-link to="/login" class="nav-link">登录</router-link>
             <router-link to="/register" class="nav-link btn-primary">注册</router-link>
           </template>
-          <button v-else @click="handleLogout" class="nav-link">退出</button>
+          <!-- 用户信息下拉菜单 -->
+          <el-dropdown v-else trigger="click" @command="handleUserCommand">
+            <span class="user-dropdown">
+              <el-avatar :size="32" :icon="UserFilled" />
+              <span class="user-name">{{ userName }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item disabled>
+                  <div class="user-info-item">
+                    <el-icon><User /></el-icon>
+                    <span>{{ userEmail }}</span>
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <div class="vip-info-item" :class="getVipStatusClass(accountExpireAt)">
+                    <el-icon class="vip-icon"><Trophy /></el-icon>
+                    <span class="vip-label">VIP到期：</span>
+                    <span class="vip-time">{{ formatExpireDate(accountExpireAt) }}</span>
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </nav>
       </div>
     </header>
@@ -25,6 +53,9 @@
     <main class="main">
       <!-- Hero 区域 -->
       <section class="hero-section">
+        <div class="hero-logo" v-if="logoUrl">
+          <img :src="logoUrl" :alt="siteName" class="hero-logo-image" />
+        </div>
         <h1 class="hero-title">{{ heroTitle }}</h1>
         <p class="hero-subtitle">{{ heroSubtitle }}</p>
         <p v-if="siteDescription" class="hero-description">{{ siteDescription }}</p>
@@ -226,7 +257,8 @@ import NotificationDropdown from '@/components/NotificationDropdown.vue'
 import { 
   Search, Grid, Cpu, DataAnalysis, Connection, SetUp, 
   Monitor, MagicStick, Cloudy, Star, Collection, 
-  ChatDotRound, Loading, Share, Link
+  ChatDotRound, Loading, Share, Link, UserFilled, ArrowDown,
+  User, Timer, SwitchButton, Trophy
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -271,6 +303,48 @@ const loadHotTags = async () => {
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
 const hasMore = computed(() => currentPage.value < totalPages.value - 1)
+
+// 用户信息
+const userName = computed(() => authStore.user?.name || authStore.user?.email?.split('@')[0] || '用户')
+const userEmail = computed(() => authStore.user?.email || '')
+const accountExpireAt = computed(() => authStore.user?.expiresAt || null)
+
+// 格式化过期时间（精确到秒）
+const formatExpireDate = (timestamp) => {
+  if (!timestamp) return '永久'
+  const date = new Date(timestamp)
+  const now = new Date()
+  if (date < now) return '已过期'
+  // 检查是否是2037年（永久有效）
+  if (date.getFullYear() >= 2037) return '永久'
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+// 获取VIP状态样式类
+const getVipStatusClass = (timestamp) => {
+  if (!timestamp) return 'vip-permanent'
+  const date = new Date(timestamp)
+  const now = new Date()
+  if (date < now) return 'vip-expired'
+  if (date.getFullYear() >= 2037) return 'vip-permanent'
+  // 7天内到期
+  const sevenDays = 7 * 24 * 60 * 60 * 1000
+  if (date.getTime() - now.getTime() < sevenDays) return 'vip-expiring'
+  return 'vip-active'
+}
+
+// 用户下拉菜单命令
+const handleUserCommand = (command) => {
+  if (command === 'logout') {
+    handleLogout()
+  }
+}
 
 // 分类图标映射
 const categoryIconMap = {
@@ -561,6 +635,101 @@ onMounted(() => {
   background: #1557b0;
 }
 
+/* 用户下拉菜单 */
+.user-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+
+.user-dropdown:hover {
+  background: #f0f5ff;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #333;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+/* VIP 信息样式 */
+.vip-info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.vip-icon {
+  font-size: 18px;
+}
+
+.vip-label {
+  color: #666;
+}
+
+.vip-time {
+  font-weight: 600;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+/* VIP 永久 */
+.vip-permanent .vip-icon {
+  color: #ffd700;
+}
+.vip-permanent .vip-time {
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+/* VIP 正常 */
+.vip-active .vip-icon {
+  color: #67c23a;
+}
+.vip-active .vip-time {
+  color: #67c23a;
+}
+
+/* VIP 即将到期（7天内） */
+.vip-expiring .vip-icon {
+  color: #e6a23c;
+  animation: pulse 1.5s infinite;
+}
+.vip-expiring .vip-time {
+  color: #e6a23c;
+  font-weight: 700;
+}
+
+/* VIP 已过期 */
+.vip-expired .vip-icon {
+  color: #f56c6c;
+}
+.vip-expired .vip-time {
+  color: #f56c6c;
+  text-decoration: line-through;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* 主内容区 */
 .main {
   flex: 1;
@@ -669,6 +838,7 @@ onMounted(() => {
 /* 分类区域 */
 .category-section {
   margin-bottom: 48px;
+  text-align: center;
 }
 
 .section-title {
@@ -693,18 +863,21 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
+  justify-content: center;
 }
 
 .category-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 10px 20px;
   background: #fff;
   border: 1px solid #e8e8e8;
   border-radius: 24px;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 120px;
+  justify-content: center;
 }
 
 .category-item:hover {
@@ -748,6 +921,7 @@ onMounted(() => {
 
 .category-stats {
   font-size: 13px;
+  text-align: center;
   color: #999;
 }
 
