@@ -93,8 +93,18 @@ public class SystemConfigService {
         result.put("heroSubtitle", getConfigValue("site.hero.subtitle", "专为AI优化的结构化数据平台"));
         result.put("heroBgColor", getConfigValue("site.hero.bgColor", ""));
         result.put("heroTextColor", getConfigValue("site.hero.textColor", ""));
+        result.put("footerLinks", getConfigValue("site.footer.links", getDefaultFooterLinks()));
+        result.put("footerBottomLinks", getConfigValue("site.footer.bottomLinks", getDefaultFooterBottomLinks()));
         
         return result;
+    }
+    
+    private String getDefaultFooterLinks() {
+        return "[{\"group\":\"产品功能\",\"links\":[{\"name\":\"结构化模板\",\"url\":\"#\"},{\"name\":\"内容编辑器\",\"url\":\"#\"},{\"name\":\"数据探索\",\"url\":\"#\"},{\"name\":\"API文档\",\"url\":\"#\"}]},{\"group\":\"资源中心\",\"links\":[{\"name\":\"帮助文档\",\"url\":\"#\"},{\"name\":\"教程指南\",\"url\":\"#\"},{\"name\":\"博客文章\",\"url\":\"#\"},{\"name\":\"常见问题\",\"url\":\"#\"}]},{\"group\":\"关于我们\",\"links\":[{\"name\":\"公司介绍\",\"url\":\"#\"},{\"name\":\"联系我们\",\"url\":\"#\"},{\"name\":\"隐私政策\",\"url\":\"#\"},{\"name\":\"服务条款\",\"url\":\"#\"}]}]";
+    }
+    
+    private String getDefaultFooterBottomLinks() {
+        return "[{\"name\":\"网站地图\",\"url\":\"#\"},{\"name\":\"AI数据接口\",\"url\":\"#\"},{\"name\":\"机器人协议\",\"url\":\"#\"}]";
     }
     
     @Transactional

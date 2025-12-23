@@ -88,7 +88,7 @@
             </el-form-item>
 
             <el-form-item>
-              <el-button type="primary" @click="saveBasicSettings" :loading="saving">
+              <el-button type="primary" @click="saveBasicSettings">
                 保存设置
               </el-button>
             </el-form-item>
@@ -163,6 +163,82 @@
             </ul>
           </div>
         </el-tab-pane>
+
+        <!-- 页脚链接设置 -->
+        <el-tab-pane label="页脚链接" name="footer">
+          <div class="footer-settings">
+            <div class="footer-tip">
+              <el-alert type="info" :closable="false" show-icon>
+                配置首页底部的链接分组，每个分组包含多个链接。
+              </el-alert>
+            </div>
+
+            <h4 class="section-label">链接分组</h4>
+            <div v-for="(group, groupIndex) in footerLinkGroups" :key="groupIndex" class="link-group">
+              <div class="group-header">
+                <el-input
+                  v-model="group.group"
+                  placeholder="分组名称"
+                  style="width: 200px"
+                />
+                <el-button type="danger" size="small" @click="removeGroup(groupIndex)">
+                  删除分组
+                </el-button>
+              </div>
+              
+              <div class="group-links">
+                <div v-for="(link, linkIndex) in group.links" :key="linkIndex" class="link-item">
+                  <el-input
+                    v-model="link.name"
+                    placeholder="链接名称"
+                    style="width: 150px"
+                  />
+                  <el-input
+                    v-model="link.url"
+                    placeholder="链接地址 (如: /about 或 https://...)"
+                    style="flex: 1"
+                  />
+                  <el-button type="danger" size="small" circle @click="removeLink(groupIndex, linkIndex)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <el-button type="primary" size="small" plain @click="addLink(groupIndex)">
+                  + 添加链接
+                </el-button>
+              </div>
+            </div>
+
+            <div class="footer-actions">
+              <el-button type="primary" plain @click="addGroup">+ 添加分组</el-button>
+              <el-button type="primary" @click="saveFooterLinks">保存链接分组</el-button>
+            </div>
+
+            <el-divider />
+
+            <h4 class="section-label">底部链接（网站地图、协议等）</h4>
+            <div class="bottom-links-section">
+              <div v-for="(link, index) in footerBottomLinks" :key="index" class="link-item">
+                <el-input
+                  v-model="link.name"
+                  placeholder="链接名称"
+                  style="width: 150px"
+                />
+                <el-input
+                  v-model="link.url"
+                  placeholder="链接地址"
+                  style="flex: 1"
+                />
+                <el-button type="danger" size="small" circle @click="removeBottomLink(index)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <div class="footer-actions">
+                <el-button type="primary" size="small" plain @click="addBottomLink">+ 添加底部链接</el-button>
+                <el-button type="primary" @click="saveFooterBottomLinks">保存底部链接</el-button>
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -171,7 +247,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, Delete } from '@element-plus/icons-vue'
 import { getPublicConfig, getAllConfig, updateConfig } from '@/api/system'
 import { useAuthStore } from '@/stores/auth'
 
@@ -190,6 +266,20 @@ const basicForm = ref({
   heroBgColor: '',
   heroTextColor: ''
 })
+
+// 页脚链接配置
+const footerLinkGroups = ref([
+  { group: '产品功能', links: [{ name: '结构化模板', url: '#' }, { name: '内容编辑器', url: '#' }] },
+  { group: '资源中心', links: [{ name: '帮助文档', url: '#' }, { name: '教程指南', url: '#' }] },
+  { group: '关于我们', links: [{ name: '公司介绍', url: '#' }, { name: '联系我们', url: '#' }] }
+])
+
+// 页脚底部链接配置
+const footerBottomLinks = ref([
+  { name: '网站地图', url: '#' },
+  { name: 'AI数据接口', url: '#' },
+  { name: '机器人协议', url: '#' }
+])
 
 // Hero 预览样式
 const heroPreviewStyle = computed(() => {
@@ -224,6 +314,28 @@ const loadSettings = async () => {
       heroTextColor: config.heroTextColor || ''
     }
     currentLogoUrl.value = config.logoUrl || ''
+    // 加载页脚链接
+    if (config.footerLinks) {
+      try {
+        const links = typeof config.footerLinks === 'string' ? JSON.parse(config.footerLinks) : config.footerLinks
+        if (Array.isArray(links) && links.length > 0) {
+          footerLinkGroups.value = links
+        }
+      } catch (e) {
+        console.error('解析页脚链接失败:', e)
+      }
+    }
+    // 加载页脚底部链接
+    if (config.footerBottomLinks) {
+      try {
+        const links = typeof config.footerBottomLinks === 'string' ? JSON.parse(config.footerBottomLinks) : config.footerBottomLinks
+        if (Array.isArray(links) && links.length > 0) {
+          footerBottomLinks.value = links
+        }
+      } catch (e) {
+        console.error('解析页脚底部链接失败:', e)
+      }
+    }
   } catch (error) {
     console.error('Failed to load settings:', error)
     ElMessage.error('加载设置失败')
@@ -284,6 +396,60 @@ const handleLogoSuccess = (response) => {
 const handleLogoError = (error) => {
   console.error('Logo upload error:', error)
   ElMessage.error('Logo上传失败')
+}
+
+// 页脚链接管理
+const addGroup = () => {
+  footerLinkGroups.value.push({ group: '新分组', links: [{ name: '链接名称', url: '#' }] })
+}
+
+const removeGroup = (index) => {
+  footerLinkGroups.value.splice(index, 1)
+}
+
+const addLink = (groupIndex) => {
+  footerLinkGroups.value[groupIndex].links.push({ name: '', url: '#' })
+}
+
+const removeLink = (groupIndex, linkIndex) => {
+  footerLinkGroups.value[groupIndex].links.splice(linkIndex, 1)
+}
+
+const saveFooterLinks = async () => {
+  try {
+    await updateConfig({
+      configKey: 'site.footer.links',
+      configValue: JSON.stringify(footerLinkGroups.value),
+      description: '页脚链接配置'
+    })
+    ElMessage.success('页脚链接保存成功')
+  } catch (error) {
+    console.error('保存页脚链接失败:', error)
+    ElMessage.error('保存失败')
+  }
+}
+
+// 底部链接管理
+const addBottomLink = () => {
+  footerBottomLinks.value.push({ name: '', url: '#' })
+}
+
+const removeBottomLink = (index) => {
+  footerBottomLinks.value.splice(index, 1)
+}
+
+const saveFooterBottomLinks = async () => {
+  try {
+    await updateConfig({
+      configKey: 'site.footer.bottomLinks',
+      configValue: JSON.stringify(footerBottomLinks.value),
+      description: '页脚底部链接配置'
+    })
+    ElMessage.success('底部链接保存成功')
+  } catch (error) {
+    console.error('保存底部链接失败:', error)
+    ElMessage.error('保存失败')
+  }
 }
 
 onMounted(() => {
@@ -400,6 +566,59 @@ onMounted(() => {
 :deep(.el-upload-dragger) {
   width: 100%;
   max-width: 500px;
+}
+
+/* 页脚链接设置 */
+.footer-settings {
+  padding: 20px 0;
+}
+
+.footer-tip {
+  margin-bottom: 20px;
+}
+
+.link-group {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.group-links {
+  padding-left: 16px;
+}
+
+.link-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.section-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 12px 0;
+}
+
+.bottom-links-section {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 16px;
 }
 
 /* 颜色选择器行 */

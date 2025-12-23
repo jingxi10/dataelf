@@ -46,7 +46,6 @@
         <el-button @click="handleClose">取消</el-button>
         <el-button
           type="primary"
-          :loading="exporting"
           :disabled="!selectedFormat"
           @click="handleExport"
         >

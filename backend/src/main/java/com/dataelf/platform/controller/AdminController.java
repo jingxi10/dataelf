@@ -1,6 +1,7 @@
 package com.dataelf.platform.controller;
 
 import com.dataelf.platform.dto.ApproveUserRequest;
+import com.dataelf.platform.dto.CreateAdminRequest;
 import com.dataelf.platform.dto.ExtendAccountRequest;
 import com.dataelf.platform.dto.UserDTO;
 import com.dataelf.platform.entity.User;
@@ -30,6 +31,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
@@ -44,6 +48,13 @@ public class AdminController {
     private final com.dataelf.platform.service.ContentService contentService;
     private final JwtUtil jwtUtil;
     
+    @Value("${app.password.bcrypt-strength:10}")
+    private int bcryptStrength;
+    
+    private BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(bcryptStrength);
+    }
+    
     private Long getAdminIdFromRequest(HttpServletRequest request) {
         String token = request.getHeader("Authorization");
         if (token != null && token.startsWith("Bearer ")) {
@@ -51,6 +62,45 @@ public class AdminController {
             return jwtUtil.getUserIdFromToken(token);
         }
         throw new RuntimeException("未找到有效的认证令牌");
+    }
+    
+    @PostMapping("/users/create-admin")
+    @Operation(summary = "新增管理员用户", description = "创建一个新的管理员账号")
+    public ResponseEntity<Map<String, Object>> createAdmin(
+            @Valid @RequestBody CreateAdminRequest request,
+            HttpServletRequest httpRequest) {
+        
+        Long adminId = getAdminIdFromRequest(httpRequest);
+        log.info("Admin {} creating new admin user with email: {}", adminId, request.getEmail());
+        
+        // 检查邮箱是否已存在
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "该邮箱已被注册");
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        // 创建管理员用户
+        User admin = new User();
+        admin.setEmail(request.getEmail());
+        admin.setPhone(request.getPhone());
+        admin.setPasswordHash(passwordEncoder().encode(request.getPassword()));
+        admin.setRole(User.UserRole.ADMIN);
+        admin.setStatus(User.UserStatus.APPROVED);
+        admin.setApprovedAt(LocalDateTime.now());
+        admin.setApprovedBy(adminId);
+        admin.setExpiresAt(LocalDateTime.now().plusDays(31)); // 默认31天有效期
+        
+        User savedAdmin = userRepository.save(admin);
+        log.info("New admin user created with id: {}", savedAdmin.getId());
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "管理员用户创建成功");
+        response.put("data", UserDTO.fromEntity(savedAdmin));
+        
+        return ResponseEntity.ok(response);
     }
     
     @PostMapping("/users/approve")

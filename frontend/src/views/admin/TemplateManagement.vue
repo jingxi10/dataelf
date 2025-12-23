@@ -140,7 +140,7 @@
         </el-form-item>
         
         <el-form-item>
-          <el-button @click="handleValidateSchema" :loading="validating">
+          <el-button @click="handleValidateSchema">
             <el-icon><Check /></el-icon>
             验证Schema
           </el-button>
@@ -154,7 +154,7 @@
       
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">
+        <el-button type="primary" @click="handleSubmit">
           {{ isEdit ? '更新' : '创建' }}
         </el-button>
       </template>
@@ -220,7 +220,6 @@
         <el-button 
           type="primary" 
           @click="handleImportSubmit" 
-          :loading="importing"
           :disabled="!importFileContent"
         >
           导入

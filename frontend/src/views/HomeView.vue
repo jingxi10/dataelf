@@ -8,10 +8,11 @@
           <span class="logo-text">{{ siteName }}</span>
         </div>
         <nav class="nav">
-          <a v-if="isAuthenticated" @click="handleCreateContent" class="nav-link" style="cursor: pointer;">创建内容</a>
-          <router-link v-if="isAuthenticated" to="/my-content" class="nav-link">我的内容</router-link>
-          <router-link v-if="isAuthenticated" to="/favorites" class="nav-link">我的收藏</router-link>
+          <router-link to="/editor" class="nav-link">创建内容</router-link>
+          <router-link to="/my-content" class="nav-link">我的内容</router-link>
+          <router-link to="/favorites" class="nav-link">我的收藏</router-link>
           <router-link v-if="isAuthenticated && isAdmin" to="/admin/users" class="nav-link">管理后台</router-link>
+          <router-link v-if="isAuthenticated && !isAdmin" to="/admin/profile" class="nav-link">个人中心</router-link>
           <NotificationDropdown v-if="isAuthenticated" />
           <template v-if="!isAuthenticated">
             <router-link to="/login" class="nav-link">登录</router-link>
@@ -179,7 +180,7 @@
 
         <!-- Load More -->
         <div v-if="hasMore && contents.length > 0" class="load-more">
-          <el-button @click="loadMore" :loading="loadingMore">
+          <el-button @click="loadMore">
             加载更多内容
           </el-button>
         </div>
@@ -192,8 +193,8 @@
         <div class="footer-grid">
           <!-- 品牌信息 -->
           <div class="footer-brand">
-            <h4>数流精灵</h4>
-            <p>专为AI优化的智能结构化数据平台</p>
+            <h4>{{ siteName }}</h4>
+            <p>{{ siteDescription || '专为AI优化的智能结构化数据平台' }}</p>
             <div class="social-links">
               <a href="#" class="social-link"><el-icon><Share /></el-icon></a>
               <a href="#" class="social-link"><el-icon><ChatDotRound /></el-icon></a>
@@ -201,40 +202,17 @@
             </div>
           </div>
           
-          <!-- 产品功能 -->
-          <div class="footer-links">
-            <h5>产品功能</h5>
-            <a href="#">结构化模板</a>
-            <a href="#">内容编辑器</a>
-            <a href="#">数据探索</a>
-            <a href="#">API文档</a>
-          </div>
-          
-          <!-- 资源中心 -->
-          <div class="footer-links">
-            <h5>资源中心</h5>
-            <a href="#">帮助文档</a>
-            <a href="#">教程指南</a>
-            <a href="#">博客文章</a>
-            <a href="#">常见问题</a>
-          </div>
-          
-          <!-- 关于我们 -->
-          <div class="footer-links">
-            <h5>关于我们</h5>
-            <a href="#">公司介绍</a>
-            <a href="#">联系我们</a>
-            <a href="#">隐私政策</a>
-            <a href="#">服务条款</a>
+          <!-- 动态页脚链接组 -->
+          <div v-for="group in footerLinkGroups" :key="group.group" class="footer-links">
+            <h5>{{ group.group }}</h5>
+            <a v-for="link in group.links" :key="link.name" :href="link.url">{{ link.name }}</a>
           </div>
         </div>
         
         <div class="footer-bottom">
-          <p>© 2024 数流精灵. 保留所有权利</p>
+          <p>© 2024 {{ siteName }}. 保留所有权利</p>
           <div class="footer-bottom-links">
-            <a href="#">网站地图</a>
-            <a href="#">AI数据接口</a>
-            <a href="#">机器人协议</a>
+            <a v-for="link in footerBottomLinks" :key="link.name" :href="link.url">{{ link.name }}</a>
           </div>
         </div>
       </div>
@@ -282,6 +260,20 @@ const heroTitle = ref('去伪存真、建立AI秩序')
 const heroSubtitle = ref('专为AI优化的结构化数据平台')
 const heroBgColor = ref('')  // Hero 背景颜色
 const heroTextColor = ref('')  // Hero 文字颜色
+
+// 页脚链接配置
+const footerLinkGroups = ref([
+  { group: '产品功能', links: [{ name: '结构化模板', url: '#' }, { name: '内容编辑器', url: '#' }, { name: '数据探索', url: '#' }, { name: 'API文档', url: '#' }] },
+  { group: '资源中心', links: [{ name: '帮助文档', url: '#' }, { name: '教程指南', url: '#' }, { name: '博客文章', url: '#' }, { name: '常见问题', url: '#' }] },
+  { group: '关于我们', links: [{ name: '公司介绍', url: '#' }, { name: '联系我们', url: '#' }, { name: '隐私政策', url: '#' }, { name: '服务条款', url: '#' }] }
+])
+
+// 页脚底部链接配置
+const footerBottomLinks = ref([
+  { name: '网站地图', url: '#' },
+  { name: 'AI数据接口', url: '#' },
+  { name: '机器人协议', url: '#' }
+])
 
 // Hero 区域动态样式
 const heroStyle = computed(() => {
@@ -578,6 +570,28 @@ const loadConfig = async () => {
     heroSubtitle.value = config.heroSubtitle || '专为AI优化的结构化数据平台'
     heroBgColor.value = config.heroBgColor || ''
     heroTextColor.value = config.heroTextColor || ''
+    // 加载页脚链接配置
+    if (config.footerLinks) {
+      try {
+        const links = typeof config.footerLinks === 'string' ? JSON.parse(config.footerLinks) : config.footerLinks
+        if (Array.isArray(links) && links.length > 0) {
+          footerLinkGroups.value = links
+        }
+      } catch (e) {
+        console.error('解析页脚链接配置失败:', e)
+      }
+    }
+    // 加载页脚底部链接配置
+    if (config.footerBottomLinks) {
+      try {
+        const links = typeof config.footerBottomLinks === 'string' ? JSON.parse(config.footerBottomLinks) : config.footerBottomLinks
+        if (Array.isArray(links) && links.length > 0) {
+          footerBottomLinks.value = links
+        }
+      } catch (e) {
+        console.error('解析页脚底部链接配置失败:', e)
+      }
+    }
   } catch (error) {
     console.error('加载配置失败:', error)
   }
@@ -1097,8 +1111,8 @@ onMounted(() => {
 
 /* 页脚 */
 .footer {
-  background: #1a1a2e;
-  color: #fff;
+  background: #f5f5f5;
+  color: #333;
   padding: 48px 0 24px;
   margin-top: auto;
 }
@@ -1133,10 +1147,11 @@ onMounted(() => {
   font-size: 20px;
   margin: 0 0 12px;
   font-weight: 600;
+  color: #333;
 }
 
 .footer-brand p {
-  color: #999;
+  color: #666;
   font-size: 14px;
   margin: 0 0 16px;
   line-height: 1.6;
@@ -1153,26 +1168,27 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
+  background: #e0e0e0;
   border-radius: 50%;
-  color: #fff;
+  color: #666;
   transition: all 0.2s;
 }
 
 .social-link:hover {
   background: #1a73e8;
+  color: #fff;
 }
 
 .footer-links h5 {
   font-size: 14px;
   font-weight: 600;
   margin: 0 0 16px;
-  color: #fff;
+  color: #333;
 }
 
 .footer-links a {
   display: block;
-  color: #999;
+  color: #666;
   font-size: 14px;
   text-decoration: none;
   margin-bottom: 10px;
@@ -1188,7 +1204,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding-top: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid #e0e0e0;
 }
 
 @media (max-width: 480px) {

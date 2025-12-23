@@ -49,14 +49,24 @@
       <template #header>
         <div class="card-header">
           <span>用户列表</span>
-          <el-button
-            type="primary"
-            size="small"
-            @click="loadUsers"
-          >
-            <el-icon><Refresh /></el-icon>
-            刷新
-          </el-button>
+          <div>
+            <el-button
+              type="success"
+              size="small"
+              @click="handleCreateAdmin"
+            >
+              <el-icon style="animation: none;"><Plus /></el-icon>
+              新增管理员
+            </el-button>
+            <el-button
+              type="primary"
+              size="small"
+              @click="loadUsers"
+            >
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -76,6 +86,14 @@
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
               {{ getStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="role" label="角色" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.role === 'ADMIN' ? 'danger' : 'info'">
+              {{ row.role === 'ADMIN' ? '管理员' : '普通用户' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -181,7 +199,6 @@
         <el-button @click="approveDialogVisible = false">取消</el-button>
         <el-button
           type="primary"
-          :loading="submitting"
           @click="confirmApprove"
         >
           确认批准
@@ -227,7 +244,6 @@
         <el-button @click="extendDialogVisible = false">取消</el-button>
         <el-button
           type="primary"
-          :loading="submitting"
           @click="confirmExtend"
         >
           确认延长
@@ -278,17 +294,54 @@
         <el-button @click="detailDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 新增管理员对话框 -->
+    <el-dialog
+      v-model="createAdminDialogVisible"
+      title="新增管理员"
+      width="500px"
+    >
+      <el-form :model="createAdminForm" :rules="createAdminRules" ref="createAdminFormRef" label-width="100px">
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="createAdminForm.email" placeholder="请输入邮箱" />
+        </el-form-item>
+        
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="createAdminForm.phone" placeholder="请输入手机号" maxlength="11" />
+        </el-form-item>
+        
+        <el-form-item label="密码" prop="password">
+          <el-input v-model="createAdminForm.password" type="password" placeholder="请输入密码" show-password />
+        </el-form-item>
+        
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="createAdminForm.confirmPassword" type="password" placeholder="请再次输入密码" show-password />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="createAdminDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="confirmCreateAdmin"
+        >
+          确认创建
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus } from '@element-plus/icons-vue'
 import {
   getUserList,
   approveUser,
-  extendAccount
+  extendAccount,
+  createAdmin
 } from '@/api/admin'
 
 // 数据状态
@@ -313,6 +366,7 @@ const filterForm = reactive({
 const approveDialogVisible = ref(false)
 const extendDialogVisible = ref(false)
 const detailDialogVisible = ref(false)
+const createAdminDialogVisible = ref(false)
 
 // 当前操作的用户
 const currentUser = ref({})
@@ -325,6 +379,43 @@ const approveForm = reactive({
 const extendForm = reactive({
   days: 30
 })
+
+// 新增管理员表单
+const createAdminFormRef = ref(null)
+const createAdminForm = reactive({
+  email: '',
+  phone: '',
+  password: '',
+  confirmPassword: ''
+})
+
+// 新增管理员表单验证规则
+const validateConfirmPassword = (rule, value, callback) => {
+  if (value !== createAdminForm.password) {
+    callback(new Error('两次输入的密码不一致'))
+  } else {
+    callback()
+  }
+}
+
+const createAdminRules = {
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+  ],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, max: 50, message: '密码长度必须在6-50位之间', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入密码', trigger: 'blur' },
+    { validator: validateConfirmPassword, trigger: 'blur' }
+  ]
+}
 
 // 加载用户列表
 const loadUsers = async () => {
@@ -435,6 +526,40 @@ const confirmExtend = async () => {
 const handleViewDetail = (user) => {
   currentUser.value = { ...user }
   detailDialogVisible.value = true
+}
+
+// 新增管理员
+const handleCreateAdmin = () => {
+  createAdminForm.email = ''
+  createAdminForm.phone = ''
+  createAdminForm.password = ''
+  createAdminForm.confirmPassword = ''
+  createAdminDialogVisible.value = true
+}
+
+const confirmCreateAdmin = async () => {
+  if (!createAdminFormRef.value) return
+  
+  await createAdminFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    submitting.value = true
+    try {
+      await createAdmin({
+        email: createAdminForm.email,
+        phone: createAdminForm.phone,
+        password: createAdminForm.password
+      })
+      ElMessage.success('管理员创建成功')
+      createAdminDialogVisible.value = false
+      loadUsers()
+    } catch (error) {
+      console.error('创建管理员失败:', error)
+      ElMessage.error(error.response?.data?.message || '创建管理员失败')
+    } finally {
+      submitting.value = false
+    }
+  })
 }
 
 // 工具函数

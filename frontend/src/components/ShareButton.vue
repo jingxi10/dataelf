@@ -1,7 +1,6 @@
 <template>
   <el-button
     type="default"
-    :loading="loading"
     @click="handleShare"
     size="small"
   >

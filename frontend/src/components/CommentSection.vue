@@ -18,7 +18,6 @@
         <el-button
           type="primary"
           @click="submitComment"
-          :loading="submitting"
           :disabled="!commentText.trim()"
         >
           发表评论

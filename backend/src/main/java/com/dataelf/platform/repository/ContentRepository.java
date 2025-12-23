@@ -30,6 +30,11 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
     
     Page<Content> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
     
+    // 按用户ID统计
+    long countByUserId(Long userId);
+    
+    long countByUserIdAndStatus(Long userId, Content.ContentStatus status);
+    
     // 搜索已发布内容（标题或作者名包含关键词）
     @Query("SELECT c FROM Content c WHERE c.status = :status AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(c.authorName) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     Page<Content> searchByKeyword(@Param("keyword") String keyword, @Param("status") Content.ContentStatus status, Pageable pageable);

@@ -12,6 +12,7 @@
           <router-link to="/my-content" class="nav-link active">我的内容</router-link>
           <router-link to="/favorites" class="nav-link">我的收藏</router-link>
           <router-link v-if="isAdmin" to="/admin/users" class="nav-link">管理后台</router-link>
+          <router-link v-if="!isAdmin" to="/admin/profile" class="nav-link">个人中心</router-link>
           <NotificationDropdown />
           <button @click="handleLogout" class="nav-link">退出</button>
         </nav>

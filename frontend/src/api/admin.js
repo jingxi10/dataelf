@@ -14,6 +14,18 @@ export function getUserList(params) {
 }
 
 /**
+ * 新增管理员用户
+ * @param {Object} data - 管理员信息
+ * @param {string} data.email - 邮箱
+ * @param {string} data.phone - 手机号
+ * @param {string} data.password - 密码
+ * @returns {Promise}
+ */
+export function createAdmin(data) {
+  return axios.post('/admin/users/create-admin', data)
+}
+
+/**
  * 获取待审核用户列表
  * @returns {Promise}
  */

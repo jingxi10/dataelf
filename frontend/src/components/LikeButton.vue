@@ -2,7 +2,6 @@
   <el-button
     :type="hasLiked ? 'primary' : 'default'"
     :icon="hasLiked ? 'el-icon-star-on' : 'el-icon-star-off'"
-    :loading="loading"
     @click="handleLike"
     size="small"
   >

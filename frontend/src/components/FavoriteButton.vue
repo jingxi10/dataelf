@@ -1,7 +1,6 @@
 <template>
   <el-button
     :type="hasFavorited ? 'warning' : 'default'"
-    :loading="loading"
     @click="handleFavorite"
     size="small"
   >

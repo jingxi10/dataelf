@@ -411,6 +411,24 @@ th {
   animation: spin 1s linear infinite;
 }
 
+/* 禁用 Element Plus 按钮的 loading 旋转动画 */
+.el-button .el-icon.is-loading {
+  animation: none !important;
+}
+
+.el-button.is-loading .el-icon {
+  animation: none !important;
+}
+
+.el-button.is-loading::before {
+  display: none !important;
+}
+
+/* 禁用所有按钮内图标的旋转动画 */
+.el-button .el-icon {
+  animation: none !important;
+}
+
 /* 淡入动画 */
 @keyframes fadeIn {
   from {

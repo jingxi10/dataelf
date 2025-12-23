@@ -63,50 +63,68 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/admin/AdminLayout.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true, title: '管理后台' },
-      redirect: { name: 'admin-users' },
+      meta: { requiresAuth: true, title: '管理后台' },
+      redirect: { name: 'admin-profile' },
       children: [
+        {
+          path: 'profile',
+          name: 'admin-profile',
+          component: () => import('@/views/admin/ProfileView.vue'),
+          meta: { title: '个人信息' }
+        },
+        {
+          path: 'my-contents',
+          name: 'admin-my-contents',
+          component: () => import('@/views/admin/MyContentsManagement.vue'),
+          meta: { title: '内容管理' }
+        },
         {
           path: 'users',
           name: 'admin-users',
           component: () => import('@/views/admin/UserManagement.vue'),
-          meta: { title: '用户管理' }
+          meta: { title: '用户管理', requiresAdmin: true }
+        },
+        {
+          path: 'editor',
+          name: 'admin-editor',
+          component: () => import('@/views/editor/EditorView.vue'),
+          meta: { title: '写文章' }
         },
         {
           path: 'templates',
           name: 'admin-templates',
           component: () => import('@/views/admin/TemplateManagement.vue'),
-          meta: { title: '模板管理' }
+          meta: { title: '模板管理', requiresAdmin: true }
         },
         {
           path: 'review',
           name: 'admin-review',
           component: () => import('@/views/admin/ContentReview.vue'),
-          meta: { title: '内容审核' }
+          meta: { title: '内容审核', requiresAdmin: true }
         },
         {
           path: 'settings',
           name: 'admin-settings',
           component: () => import('@/views/admin/SystemSettings.vue'),
-          meta: { title: '系统设置' }
+          meta: { title: '系统设置', requiresAdmin: true }
         },
         {
           path: 'categories',
           name: 'admin-categories',
           component: () => import('@/views/admin/CategoryManagement.vue'),
-          meta: { title: '分类管理' }
+          meta: { title: '分类管理', requiresAdmin: true }
         },
         {
           path: 'tags',
           name: 'admin-tags',
           component: () => import('@/views/admin/TagManagement.vue'),
-          meta: { title: '标签管理' }
+          meta: { title: '标签管理', requiresAdmin: true }
         },
         {
           path: 'data-sources',
           name: 'admin-data-sources',
           component: () => import('@/views/admin/DataSourceManagement.vue'),
-          meta: { title: '数据源管理' }
+          meta: { title: '数据源管理', requiresAdmin: true }
         }
       ]
     },
@@ -170,7 +188,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAdmin) {
     if (!authStore.isAdmin) {
       ElMessage.error('您没有权限访问此页面')
-      next({ name: 'home' })
+      next({ name: 'admin-profile' })
       return
     }
   }

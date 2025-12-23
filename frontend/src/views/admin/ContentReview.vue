@@ -9,7 +9,6 @@
             type="primary" 
             :icon="Refresh" 
             @click="loadReviewQueue"
-            :loading="loading"
           >
             刷新
           </el-button>

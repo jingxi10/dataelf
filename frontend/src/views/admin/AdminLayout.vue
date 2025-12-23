@@ -4,41 +4,59 @@
       <!-- 侧边栏 -->
       <el-aside width="200px" class="admin-sidebar">
         <div class="admin-logo">
-          <h2>管理后台</h2>
+          <h2>{{ isAdmin ? '管理后台' : '个人中心' }}</h2>
         </div>
         <el-menu
           :default-active="activeMenu"
           router
           class="admin-menu"
         >
-          <el-menu-item index="/admin/users">
-            <el-icon><User /></el-icon>
-            <span>用户管理</span>
+          <!-- 所有用户可见 -->
+          <el-menu-item index="/admin/profile">
+            <el-icon><UserFilled /></el-icon>
+            <span>个人信息</span>
           </el-menu-item>
-          <el-menu-item index="/admin/templates">
+          <el-menu-item index="/admin/my-contents">
             <el-icon><Document /></el-icon>
-            <span>模板管理</span>
+            <span>内容管理</span>
           </el-menu-item>
-          <el-menu-item index="/admin/review">
-            <el-icon><Check /></el-icon>
-            <span>内容审核</span>
+          <el-menu-item index="/admin/editor">
+            <el-icon><Edit /></el-icon>
+            <span>写文章</span>
           </el-menu-item>
-          <el-menu-item index="/admin/categories">
-            <el-icon><Folder /></el-icon>
-            <span>分类管理</span>
-          </el-menu-item>
-          <el-menu-item index="/admin/tags">
-            <el-icon><PriceTag /></el-icon>
-            <span>标签管理</span>
-          </el-menu-item>
-          <el-menu-item index="/admin/data-sources">
-            <el-icon><Connection /></el-icon>
-            <span>数据源管理</span>
-          </el-menu-item>
-          <el-menu-item index="/admin/settings">
-            <el-icon><Setting /></el-icon>
-            <span>系统设置</span>
-          </el-menu-item>
+          
+          <!-- 仅管理员可见 -->
+          <template v-if="isAdmin">
+            <el-divider style="margin: 12px 0; border-color: #4a5568;" />
+            <el-menu-item index="/admin/users">
+              <el-icon><User /></el-icon>
+              <span>用户管理</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/templates">
+              <el-icon><Files /></el-icon>
+              <span>模板管理</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/review">
+              <el-icon><Check /></el-icon>
+              <span>内容审核</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/categories">
+              <el-icon><Folder /></el-icon>
+              <span>分类管理</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/tags">
+              <el-icon><PriceTag /></el-icon>
+              <span>标签管理</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/data-sources">
+              <el-icon><Connection /></el-icon>
+              <span>数据源管理</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/settings">
+              <el-icon><Setting /></el-icon>
+              <span>系统设置</span>
+            </el-menu-item>
+          </template>
         </el-menu>
       </el-aside>
 
@@ -53,7 +71,7 @@
             <el-dropdown @command="handleCommand">
               <span class="user-info">
                 <el-icon><Avatar /></el-icon>
-                {{ authStore.user?.email || '管理员' }}
+                {{ authStore.user?.nickname || authStore.user?.email || '用户' }}
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -77,7 +95,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { User, Document, Check, Avatar, Setting, Folder, PriceTag, Connection } from '@element-plus/icons-vue'
+import { User, UserFilled, Document, Check, Avatar, Setting, Folder, PriceTag, Connection, Edit, Files } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import NotificationDropdown from '@/components/NotificationDropdown.vue'
 
@@ -86,10 +104,14 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const activeMenu = computed(() => route.path)
+const isAdmin = computed(() => authStore.isAdmin)
 
 const pageTitle = computed(() => {
   const titles = {
+    '/admin/profile': '个人信息',
+    '/admin/my-contents': '内容管理',
     '/admin/users': '用户管理',
+    '/admin/editor': '写文章',
     '/admin/templates': '模板管理',
     '/admin/review': '内容审核',
     '/admin/categories': '分类管理',
@@ -97,7 +119,7 @@ const pageTitle = computed(() => {
     '/admin/data-sources': '数据源管理',
     '/admin/settings': '系统设置'
   }
-  return titles[route.path] || '管理后台'
+  return titles[route.path] || (isAdmin.value ? '管理后台' : '个人中心')
 })
 
 const handleCommand = (command) => {

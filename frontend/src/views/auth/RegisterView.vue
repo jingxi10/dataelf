@@ -58,7 +58,6 @@
           <el-button
             type="primary"
             native-type="submit"
-            :loading="loading"
             style="width: 100%"
           >
             注册

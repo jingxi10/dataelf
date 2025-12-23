@@ -5,7 +5,7 @@
         <div class="editor-header">
           <h2>内容编辑器</h2>
           <div class="header-actions">
-            <el-button @click="handleSaveDraft" :loading="saving">保存草稿</el-button>
+            <el-button @click="handleSaveDraft">保存草稿</el-button>
             <el-button
               v-if="contentId"
               :icon="Download"
@@ -13,7 +13,7 @@
             >
               导出
             </el-button>
-            <el-button type="primary" @click="handleSubmit" :loading="submitting">提交审核</el-button>
+            <el-button type="primary" @click="handleSubmit">提交审核</el-button>
           </div>
         </div>
       </template>

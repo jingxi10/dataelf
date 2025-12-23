@@ -135,16 +135,39 @@
 .el-button--primary {
   background-color: var(--color-primary);
   border-color: var(--color-primary);
+  color: #ffffff;
 }
 
 .el-button--primary:hover {
   background-color: var(--color-primary-light);
   border-color: var(--color-primary-light);
+  color: #ffffff;
 }
 
 .el-button--primary:active {
   background-color: var(--color-primary-dark);
   border-color: var(--color-primary-dark);
+  color: #ffffff;
+}
+
+.el-button--primary.is-plain {
+  background-color: #ecf5ff;
+  border-color: var(--color-primary-lighter);
+  color: var(--color-primary);
+}
+
+.el-button--primary.is-plain:hover {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.el-button--danger {
+  color: #ffffff;
+}
+
+.el-button--danger:hover {
+  color: #ffffff;
 }
 
 /* 输入框组件定制 */
