@@ -8,7 +8,7 @@
           <span class="logo-text">{{ siteName }}</span>
         </div>
         <nav class="nav">
-          <router-link v-if="isAuthenticated" to="/editor" class="nav-link">创建内容</router-link>
+          <a v-if="isAuthenticated" @click="handleCreateContent" class="nav-link" style="cursor: pointer;">创建内容</a>
           <router-link v-if="isAuthenticated" to="/my-content" class="nav-link">我的内容</router-link>
           <router-link v-if="isAuthenticated" to="/favorites" class="nav-link">我的收藏</router-link>
           <router-link v-if="isAuthenticated && isAdmin" to="/admin/users" class="nav-link">管理后台</router-link>
@@ -52,10 +52,7 @@
 
     <main class="main">
       <!-- Hero 区域 -->
-      <section class="hero-section">
-        <div class="hero-logo" v-if="logoUrl">
-          <img :src="logoUrl" :alt="siteName" class="hero-logo-image" />
-        </div>
+      <section class="hero-section" :style="heroStyle">
         <h1 class="hero-title">{{ heroTitle }}</h1>
         <p class="hero-subtitle">{{ heroSubtitle }}</p>
         <p v-if="siteDescription" class="hero-description">{{ siteDescription }}</p>
@@ -248,6 +245,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { getPublishedContents, getContentsByCategory, searchContents } from '@/api/content'
 import { getAllCategories } from '@/api/category'
@@ -282,6 +280,20 @@ const siteName = ref('数流精灵')
 const siteDescription = ref('')
 const heroTitle = ref('去伪存真、建立AI秩序')
 const heroSubtitle = ref('专为AI优化的结构化数据平台')
+const heroBgColor = ref('')  // Hero 背景颜色
+const heroTextColor = ref('')  // Hero 文字颜色
+
+// Hero 区域动态样式
+const heroStyle = computed(() => {
+  const style = {}
+  if (heroBgColor.value) {
+    style.background = heroBgColor.value
+  }
+  if (heroTextColor.value) {
+    style.color = heroTextColor.value
+  }
+  return style
+})
 
 // 热门搜索标签（动态加载）
 const hotTags = ref([])
@@ -302,6 +314,7 @@ const loadHotTags = async () => {
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
+const isVipValid = computed(() => authStore.isVipValid)
 const hasMore = computed(() => currentPage.value < totalPages.value - 1)
 
 // 用户信息
@@ -537,6 +550,23 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+// 创建内容（检查VIP状态）
+const handleCreateContent = () => {
+  if (!isVipValid.value) {
+    ElMessageBox.confirm(
+      '您的VIP已过期，无法创建内容。请联系管理员续费。',
+      'VIP已过期',
+      {
+        confirmButtonText: '我知道了',
+        showCancelButton: false,
+        type: 'warning'
+      }
+    )
+    return
+  }
+  router.push('/editor')
+}
+
 const loadConfig = async () => {
   try {
     const response = await getPublicConfig()
@@ -546,6 +576,8 @@ const loadConfig = async () => {
     siteDescription.value = config.siteDescription || ''
     heroTitle.value = config.heroTitle || '去伪存真、建立AI秩序'
     heroSubtitle.value = config.heroSubtitle || '专为AI优化的结构化数据平台'
+    heroBgColor.value = config.heroBgColor || ''
+    heroTextColor.value = config.heroTextColor || ''
   } catch (error) {
     console.error('加载配置失败:', error)
   }

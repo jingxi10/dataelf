@@ -5,8 +5,8 @@ import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.dataelf.platform.config.AliyunOssConfig;
 import com.dataelf.platform.exception.ValidationException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,12 +19,17 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class FileUploadService {
     
     private final OSS ossClient;
     private final AliyunOssConfig ossConfig;
+    
+    @Autowired
+    public FileUploadService(@Autowired(required = false) OSS ossClient, AliyunOssConfig ossConfig) {
+        this.ossClient = ossClient;
+        this.ossConfig = ossConfig;
+    }
     
     private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final long MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
@@ -90,6 +95,11 @@ public class FileUploadService {
      * 上传文件到阿里云OSS
      */
     private String uploadToOss(MultipartFile file, String subDir, Long userId) throws IOException {
+        // 检查OSS是否配置
+        if (ossClient == null || !ossConfig.isConfigured()) {
+            throw new ValidationException("OSS未配置，无法上传文件。请先配置阿里云OSS。");
+        }
+        
         // 生成文件路径：dirPrefix/subDir/yyyy/MM/dd/uuid.ext
         String dateDir = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         String originalFilename = file.getOriginalFilename();
@@ -132,6 +142,12 @@ public class FileUploadService {
      */
     public boolean deleteFile(String fileUrl) {
         if (fileUrl == null || fileUrl.isEmpty()) {
+            return false;
+        }
+        
+        // 检查OSS是否配置
+        if (ossClient == null || !ossConfig.isConfigured()) {
+            log.warn("OSS not configured, cannot delete file");
             return false;
         }
         

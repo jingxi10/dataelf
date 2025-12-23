@@ -46,6 +46,47 @@
               />
             </el-form-item>
 
+            <el-divider content-position="left">Hero区域样式</el-divider>
+
+            <el-form-item label="背景颜色">
+              <div class="color-picker-row">
+                <el-color-picker
+                  v-model="basicForm.heroBgColor"
+                  show-alpha
+                />
+                <el-input
+                  v-model="basicForm.heroBgColor"
+                  placeholder="如: #f0f7ff 或 linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%)"
+                  class="color-input"
+                />
+                <el-button size="small" @click="basicForm.heroBgColor = ''">重置</el-button>
+              </div>
+              <div class="form-tip">支持颜色值或渐变，留空使用默认渐变背景</div>
+            </el-form-item>
+
+            <el-form-item label="文字颜色">
+              <div class="color-picker-row">
+                <el-color-picker
+                  v-model="basicForm.heroTextColor"
+                />
+                <el-input
+                  v-model="basicForm.heroTextColor"
+                  placeholder="如: #1a73e8"
+                  class="color-input"
+                />
+                <el-button size="small" @click="basicForm.heroTextColor = ''">重置</el-button>
+              </div>
+              <div class="form-tip">设置Hero区域标题和副标题的文字颜色</div>
+            </el-form-item>
+
+            <!-- 预览 -->
+            <el-form-item label="效果预览">
+              <div class="hero-preview" :style="heroPreviewStyle">
+                <div class="preview-title">{{ basicForm.heroTitle || '首页标题' }}</div>
+                <div class="preview-subtitle">{{ basicForm.heroSubtitle || '首页副标题' }}</div>
+              </div>
+            </el-form-item>
+
             <el-form-item>
               <el-button type="primary" @click="saveBasicSettings" :loading="saving">
                 保存设置
@@ -128,7 +169,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { getPublicConfig, getAllConfig, updateConfig } from '@/api/system'
@@ -145,7 +186,23 @@ const basicForm = ref({
   siteName: '',
   siteDescription: '',
   heroTitle: '',
-  heroSubtitle: ''
+  heroSubtitle: '',
+  heroBgColor: '',
+  heroTextColor: ''
+})
+
+// Hero 预览样式
+const heroPreviewStyle = computed(() => {
+  const style = {}
+  if (basicForm.value.heroBgColor) {
+    style.background = basicForm.value.heroBgColor
+  } else {
+    style.background = 'linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%)'
+  }
+  if (basicForm.value.heroTextColor) {
+    style.color = basicForm.value.heroTextColor
+  }
+  return style
 })
 
 const uploadAction = `${import.meta.env.VITE_API_BASE_URL}/api/admin/config/logo`
@@ -162,7 +219,9 @@ const loadSettings = async () => {
       siteName: config.siteName || '',
       siteDescription: config.siteDescription || '',
       heroTitle: config.heroTitle || '',
-      heroSubtitle: config.heroSubtitle || ''
+      heroSubtitle: config.heroSubtitle || '',
+      heroBgColor: config.heroBgColor || '',
+      heroTextColor: config.heroTextColor || ''
     }
     currentLogoUrl.value = config.logoUrl || ''
   } catch (error) {
@@ -179,7 +238,9 @@ const saveBasicSettings = async () => {
       { configKey: 'site.name', configValue: basicForm.value.siteName, description: '网站名称' },
       { configKey: 'site.description', configValue: basicForm.value.siteDescription, description: '网站描述' },
       { configKey: 'site.hero.title', configValue: basicForm.value.heroTitle, description: '首页标题' },
-      { configKey: 'site.hero.subtitle', configValue: basicForm.value.heroSubtitle, description: '首页副标题' }
+      { configKey: 'site.hero.subtitle', configValue: basicForm.value.heroSubtitle, description: '首页副标题' },
+      { configKey: 'site.hero.bgColor', configValue: basicForm.value.heroBgColor, description: 'Hero背景颜色' },
+      { configKey: 'site.hero.textColor', configValue: basicForm.value.heroTextColor, description: 'Hero文字颜色' }
     ]
 
     for (const config of configs) {
@@ -339,5 +400,46 @@ onMounted(() => {
 :deep(.el-upload-dragger) {
   width: 100%;
   max-width: 500px;
+}
+
+/* 颜色选择器行 */
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-input {
+  flex: 1;
+  max-width: 400px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+/* Hero 预览 */
+.hero-preview {
+  width: 100%;
+  max-width: 500px;
+  padding: 32px 24px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #e4e7ed;
+}
+
+.preview-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: inherit;
+}
+
+.preview-subtitle {
+  font-size: 16px;
+  opacity: 0.8;
+  color: inherit;
 }
 </style>

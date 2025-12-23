@@ -6,6 +6,7 @@ import com.dataelf.platform.entity.Notification.NotificationType;
 import com.dataelf.platform.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
@@ -23,12 +24,20 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final JavaMailSender mailSender;
     
+    @Value("${spring.mail.username:}")
+    private String fromEmail;
+    
     /**
      * 发送邮件（内部方法，同步）
      */
     private void doSendEmail(String to, String subject, String content) {
         try {
+            if (fromEmail == null || fromEmail.isEmpty()) {
+                log.warn("Mail not configured, skipping email to: {}", to);
+                return;
+            }
             SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
             message.setTo(to);
             message.setSubject(subject);
             message.setText(content);
@@ -36,7 +45,8 @@ public class NotificationService {
             mailSender.send(message);
             log.info("Email sent successfully to: {}", to);
         } catch (Exception e) {
-            log.error("Failed to send email to: {}", to, e);
+            System.out.println("errormail:"+e.getMessage());
+            log.error("Failed to send email to: {},merror:{}", to, e.getCause());
         }
     }
     

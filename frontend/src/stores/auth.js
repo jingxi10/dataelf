@@ -12,6 +12,18 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'ADMIN')
   const isPending = computed(() => user.value?.status === 'PENDING')
   const isExpired = computed(() => user.value?.status === 'EXPIRED')
+  
+  // VIP是否有效（未过期）
+  const isVipValid = computed(() => {
+    if (!user.value) return false
+    if (user.value.status !== 'APPROVED') return false
+    if (!user.value.expiresAt) return true // 没有过期时间表示永久
+    const expireDate = new Date(user.value.expiresAt)
+    return expireDate > new Date()
+  })
+  
+  // VIP过期时间
+  const vipExpireAt = computed(() => user.value?.expiresAt || null)
 
   /**
    * 设置认证信息
@@ -139,6 +151,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isPending,
     isExpired,
+    isVipValid,
+    vipExpireAt,
     setAuth,
     clearAuth,
     initializeAuth,

@@ -7,8 +7,8 @@ import com.dataelf.platform.config.AliyunOssConfig;
 import com.dataelf.platform.entity.SystemConfig;
 import com.dataelf.platform.exception.ValidationException;
 import com.dataelf.platform.repository.SystemConfigRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class SystemConfigService {
     
@@ -31,6 +30,15 @@ public class SystemConfigService {
     
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     private static final String[] ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"};
+    
+    @Autowired
+    public SystemConfigService(SystemConfigRepository systemConfigRepository, 
+                               @Autowired(required = false) OSS ossClient,
+                               AliyunOssConfig ossConfig) {
+        this.systemConfigRepository = systemConfigRepository;
+        this.ossClient = ossClient;
+        this.ossConfig = ossConfig;
+    }
     
     @Transactional(readOnly = true)
     public String getConfigValue(String key) {
@@ -83,12 +91,19 @@ public class SystemConfigService {
         result.put("logoUrl", getConfigValue("site.logo.url", ""));
         result.put("heroTitle", getConfigValue("site.hero.title", "去伪存真、建立AI秩序"));
         result.put("heroSubtitle", getConfigValue("site.hero.subtitle", "专为AI优化的结构化数据平台"));
+        result.put("heroBgColor", getConfigValue("site.hero.bgColor", ""));
+        result.put("heroTextColor", getConfigValue("site.hero.textColor", ""));
         
         return result;
     }
     
     @Transactional
     public String uploadLogo(MultipartFile file) throws IOException {
+        // 检查OSS是否配置
+        if (ossClient == null || !ossConfig.isConfigured()) {
+            throw new ValidationException("OSS未配置，无法上传文件。请先配置阿里云OSS。");
+        }
+        
         // 验证文件
         validateImageFile(file);
         

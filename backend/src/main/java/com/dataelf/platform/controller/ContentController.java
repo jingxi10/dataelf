@@ -2,6 +2,7 @@ package com.dataelf.platform.controller;
 
 import com.dataelf.platform.dto.*;
 import com.dataelf.platform.service.ContentService;
+import com.dataelf.platform.service.UserService;
 import com.dataelf.platform.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class ContentController {
     
     private final ContentService contentService;
+    private final UserService userService;
     private final JwtUtil jwtUtil;
     
     @PostMapping
@@ -31,6 +33,14 @@ public class ContentController {
         HttpServletRequest httpRequest
     ) {
         Long userId = getUserIdFromToken(httpRequest);
+        
+        // 检查VIP是否有效
+        if (!userService.isAccountValid(userId)) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", Map.of("code", "VIP_EXPIRED", "message", "您的VIP已过期，请续费后再创建内容"));
+            return ResponseEntity.status(403).body(response);
+        }
         
         ContentDTO content = contentService.createContent(userId, request);
         
@@ -49,6 +59,14 @@ public class ContentController {
         HttpServletRequest httpRequest
     ) {
         Long userId = getUserIdFromToken(httpRequest);
+        
+        // 检查VIP是否有效
+        if (!userService.isAccountValid(userId)) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", Map.of("code", "VIP_EXPIRED", "message", "您的VIP已过期，请续费后再编辑内容"));
+            return ResponseEntity.status(403).body(response);
+        }
         
         // Verify ownership
         ContentDTO existingContent = contentService.getContent(id);
@@ -86,6 +104,14 @@ public class ContentController {
         HttpServletRequest httpRequest
     ) {
         Long userId = getUserIdFromToken(httpRequest);
+        
+        // 检查VIP是否有效
+        if (!userService.isAccountValid(userId)) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", Map.of("code", "VIP_EXPIRED", "message", "您的VIP已过期，请续费后再提交审核"));
+            return ResponseEntity.status(403).body(response);
+        }
         
         // Verify ownership
         ContentDTO content = contentService.getContent(id);
