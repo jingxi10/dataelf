@@ -28,31 +28,43 @@
           <!-- 仅管理员可见 -->
           <template v-if="isAdmin">
             <el-divider style="margin: 12px 0; border-color: #4a5568;" />
-            <el-menu-item index="/admin/users">
+            <!-- 用户管理 - 主管理员或有user_approve或user_delete权限的普通管理员可见 -->
+            <el-menu-item v-if="isMainAdmin || hasPermission('user_approve') || hasPermission('user_delete')" index="/admin/users">
               <el-icon><User /></el-icon>
               <span>用户管理</span>
             </el-menu-item>
-            <el-menu-item index="/admin/templates">
-              <el-icon><Files /></el-icon>
-              <span>模板管理</span>
-            </el-menu-item>
-            <el-menu-item index="/admin/review">
+            <!-- 内容审核 - 主管理员或有content_review权限的普通管理员可见 -->
+            <el-menu-item v-if="isMainAdmin || hasPermission('content_review')" index="/admin/review">
               <el-icon><Check /></el-icon>
               <span>内容审核</span>
             </el-menu-item>
-            <el-menu-item index="/admin/categories">
+            <!-- 所有内容管理 - 仅主管理员可见 -->
+            <el-menu-item v-if="isMainAdmin" index="/admin/all-contents">
+              <el-icon><Document /></el-icon>
+              <span>所有内容管理</span>
+            </el-menu-item>
+            <!-- 模板管理 - 主管理员或有template_manage权限的普通管理员可见 -->
+            <el-menu-item v-if="isMainAdmin || hasPermission('template_manage')" index="/admin/templates">
+              <el-icon><Files /></el-icon>
+              <span>模板管理</span>
+            </el-menu-item>
+            <!-- 分类管理 - 主管理员或有category_manage权限的普通管理员可见 -->
+            <el-menu-item v-if="isMainAdmin || hasPermission('category_manage')" index="/admin/categories">
               <el-icon><Folder /></el-icon>
               <span>分类管理</span>
             </el-menu-item>
-            <el-menu-item index="/admin/tags">
+            <!-- 标签管理 - 主管理员或有tag_manage权限的普通管理员可见 -->
+            <el-menu-item v-if="isMainAdmin || hasPermission('tag_manage')" index="/admin/tags">
               <el-icon><PriceTag /></el-icon>
               <span>标签管理</span>
             </el-menu-item>
-            <el-menu-item index="/admin/data-sources">
+            <!-- 数据源管理 - 主管理员或有data_source_manage权限的普通管理员可见 -->
+            <el-menu-item v-if="isMainAdmin || hasPermission('data_source_manage')" index="/admin/data-sources">
               <el-icon><Connection /></el-icon>
               <span>数据源管理</span>
             </el-menu-item>
-            <el-menu-item index="/admin/settings">
+            <!-- 系统设置 - 主管理员或有system_settings权限的普通管理员可见 -->
+            <el-menu-item v-if="isMainAdmin || hasPermission('system_settings')" index="/admin/settings">
               <el-icon><Setting /></el-icon>
               <span>系统设置</span>
             </el-menu-item>
@@ -105,6 +117,8 @@ const authStore = useAuthStore()
 
 const activeMenu = computed(() => route.path)
 const isAdmin = computed(() => authStore.isAdmin)
+const isMainAdmin = computed(() => authStore.isMainAdmin)
+const hasPermission = (permission) => authStore.hasPermission(permission)
 
 const pageTitle = computed(() => {
   const titles = {
@@ -114,6 +128,7 @@ const pageTitle = computed(() => {
     '/admin/editor': '写文章',
     '/admin/templates': '模板管理',
     '/admin/review': '内容审核',
+    '/admin/all-contents': '所有内容管理',
     '/admin/categories': '分类管理',
     '/admin/tags': '标签管理',
     '/admin/data-sources': '数据源管理',

@@ -3,7 +3,10 @@
     <el-card class="editor-container">
       <template #header>
         <div class="editor-header">
-          <h2>内容编辑器</h2>
+          <div class="header-left">
+            <el-button :icon="ArrowLeft" @click="handleBack">返回</el-button>
+            <h2>内容编辑器</h2>
+          </div>
           <div class="header-actions">
             <el-button @click="handleSaveDraft">保存草稿</el-button>
             <el-button
@@ -99,7 +102,7 @@
             </h3>
             <RichTextEditor
               v-model="formData.structuredData.articleBody"
-              placeholder="请输入内容正文，支持插入图片、视频..."
+              placeholder="请输入内容正文，支持插入2MB以内图片、60MB以内的视频..."
               @update:modelValue="handleFieldChange"
             />
           </div>
@@ -288,7 +291,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { InfoFilled, Rank, Download } from '@element-plus/icons-vue'
+import { InfoFilled, Rank, Download, ArrowLeft } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 import { getTemplateList, getTemplateDetail } from '@/api/template'
 import {
@@ -366,9 +369,10 @@ onMounted(async () => {
   await loadCategories()
   await loadTags()
   
-  // 如果URL中有contentId，加载现有内容
-  if (route.query.id) {
-    contentId.value = parseInt(route.query.id)
+  // 如果URL中有contentId，加载现有内容（支持路径参数和查询参数）
+  const id = route.params.id || route.query.id
+  if (id) {
+    contentId.value = parseInt(id)
     await loadContent(contentId.value)
   }
 })
@@ -419,7 +423,18 @@ async function loadContent(id) {
     if (content) {
       selectedTemplateId.value = content.templateId
       formData.title = content.title
-      formData.structuredData = content.structuredData || {}
+      
+      // 解析structuredData（可能是字符串或对象）
+      let structuredData = content.structuredData || {}
+      if (typeof structuredData === 'string') {
+        try {
+          structuredData = JSON.parse(structuredData)
+        } catch (e) {
+          console.error('解析structuredData失败:', e)
+          structuredData = {}
+        }
+      }
+      
       formData.contentSource = content.contentSource || ''
       formData.authorName = content.authorName || ''
       formData.isOriginal = content.isOriginal !== false
@@ -427,7 +442,17 @@ async function loadContent(id) {
       formData.categoryIds = content.categoryIds || []
       formData.tagIds = content.tagIds || []
       
+      // 先加载模板，再设置structuredData，这样可以保留已加载的数据
       await handleTemplateChange(content.templateId)
+      
+      // 在模板加载完成后，设置structuredData（保留已存在的值）
+      if (structuredData && Object.keys(structuredData).length > 0) {
+        Object.keys(structuredData).forEach(key => {
+          if (structuredData[key] !== null && structuredData[key] !== undefined) {
+            formData.structuredData[key] = structuredData[key]
+          }
+        })
+      }
     }
   } catch (error) {
     console.error('加载内容失败:', error)
@@ -463,9 +488,9 @@ function parseSchemaDefinition(schemaDefinition) {
     schemaFields.value = schema.fields || []
     orderedFields.value = [...schemaFields.value]
     
-    // 初始化structuredData
+    // 初始化structuredData（只在字段不存在时才初始化，保留已存在的值）
     schemaFields.value.forEach(field => {
-      if (!(field.name in formData.structuredData)) {
+      if (!(field.name in formData.structuredData) || formData.structuredData[field.name] === undefined) {
         formData.structuredData[field.name] = ''
       }
     })
@@ -732,6 +757,11 @@ function showExportDialog() {
 function handleExported(format) {
   console.log('导出完成，格式:', format)
 }
+
+// 返回处理
+function handleBack() {
+  router.back()
+}
 </script>
 
 <style scoped>
@@ -750,6 +780,16 @@ function handleExported(format) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-left h2 {
+  margin: 0;
 }
 
 .editor-header h2 {

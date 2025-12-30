@@ -146,6 +146,13 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
+        <!-- Apache POI for Word document export -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.3</version>
+        </dependency>
+
         <!-- Logstash Logback Encoder for JSON logging -->
         <dependency>
             <groupId>net.logstash.logback</groupId>

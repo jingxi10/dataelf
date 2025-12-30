@@ -33,6 +33,8 @@ public class ContentService {
     private final NotificationService notificationService;
     private final HtmlGenerationService htmlGenerationService;
     private final ObjectMapper objectMapper;
+    private final com.dataelf.platform.service.UserInteractionService userInteractionService;
+    private final com.dataelf.platform.service.CommentService commentService;
     
     @Transactional
     public ContentDTO createContent(Long userId, ContentCreateRequest request) {
@@ -206,6 +208,19 @@ public class ContentService {
         if (request.getTagNames() != null) {
             Set<Tag> tags = getOrCreateTags(request.getTagNames());
             content.setTags(tags);
+        }
+        
+        // 如果文章是已审核通过、已发布或被拒绝状态，编辑后改回草稿状态，需要重新提交审核
+        Content.ContentStatus originalStatus = content.getStatus();
+        if (originalStatus == Content.ContentStatus.APPROVED || 
+            originalStatus == Content.ContentStatus.PUBLISHED ||
+            originalStatus == Content.ContentStatus.REJECTED) {
+            content.setStatus(Content.ContentStatus.DRAFT);
+            // 清除拒绝原因，因为用户已经修改了内容
+            if (originalStatus == Content.ContentStatus.REJECTED) {
+                content.setRejectReason(null);
+            }
+            log.info("Content status changed from {} to DRAFT after edit: {}", originalStatus, contentId);
         }
         
         content = contentRepository.save(content);
@@ -828,10 +843,18 @@ public class ContentService {
     }
     
     public ContentDTO convertToDTO(Content content) {
+        return convertToDTO(content, null);
+    }
+    
+    public ContentDTO convertToDTO(Content content, Map<Long, User> reviewerMap) {
         ContentDTO dto = new ContentDTO();
         dto.setId(content.getId());
         dto.setUserId(content.getUserId());
         dto.setTemplateId(content.getTemplateId());
+        // 填充模板名称
+        templateRepository.findById(content.getTemplateId()).ifPresent(template -> {
+            dto.setTemplateName(template.getName());
+        });
         dto.setTitle(content.getTitle());
         dto.setStructuredData(parseStructuredData(content.getStructuredData()));
         dto.setJsonLd(content.getJsonLd());
@@ -851,6 +874,24 @@ public class ContentService {
         dto.setReviewedBy(content.getReviewedBy());
         dto.setRejectReason(content.getRejectReason());
         dto.setViewCount(content.getViewCount());
+        
+        // 填充审批人信息
+        if (content.getReviewedBy() != null) {
+            if (reviewerMap != null && reviewerMap.containsKey(content.getReviewedBy())) {
+                User reviewer = reviewerMap.get(content.getReviewedBy());
+                dto.setReviewedByName(reviewer.getEmail());
+            } else {
+                // 如果没有提供 reviewerMap，单独查询
+                userRepository.findById(content.getReviewedBy()).ifPresent(reviewer -> {
+                    dto.setReviewedByName(reviewer.getEmail());
+                });
+            }
+        }
+        
+        // 填充交互统计数据
+        dto.setLikeCount(userInteractionService.getInteractionCount(content.getId(), com.dataelf.platform.entity.UserInteraction.InteractionType.LIKE));
+        dto.setFavoriteCount(userInteractionService.getInteractionCount(content.getId(), com.dataelf.platform.entity.UserInteraction.InteractionType.FAVORITE));
+        dto.setCommentCount(commentService.getCommentCount(content.getId()));
         
         if (content.getCategories() != null) {
             dto.setCategoryIds(content.getCategories().stream()
@@ -880,7 +921,11 @@ public class ContentService {
     @Transactional
     @Caching(evict = {
         @CacheEvict(value = "publishedContents", allEntries = true),
-        @CacheEvict(value = "contentsByCategory", allEntries = true)
+        @CacheEvict(value = "contentsByCategory", allEntries = true),
+        @CacheEvict(value = "homepage-contents", allEntries = true),
+        @CacheEvict(value = "ai-content-jsonld", key = "#contentId"),
+        @CacheEvict(value = "ai-search-results", allEntries = true),
+        @CacheEvict(value = "ai-sitemap", allEntries = true)
     })
     public void deleteContent(Long contentId) {
         log.info("Deleting content: {}", contentId);
@@ -888,13 +933,206 @@ public class ContentService {
         Content content = contentRepository.findById(contentId)
             .orElseThrow(() -> new ValidationException("内容不存在"));
         
-        // 只允许删除草稿和已拒绝的内容
-        if (content.getStatus() != Content.ContentStatus.DRAFT && 
-            content.getStatus() != Content.ContentStatus.REJECTED) {
-            throw new ValidationException("只能删除草稿或已拒绝的内容");
-        }
-        
+        // 会员可以删除自己发布的内容（包括已发布、已通过、待审核、草稿、已拒绝）
+        // 不再限制只能删除草稿和已拒绝的内容
         contentRepository.delete(content);
         log.info("Content deleted: {}", contentId);
+    }
+    
+    /**
+     * 用户下架自己发布的内容
+     */
+    @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "publishedContents", allEntries = true),
+        @CacheEvict(value = "contentsByCategory", allEntries = true),
+        @CacheEvict(value = "homepage-contents", allEntries = true),
+        @CacheEvict(value = "ai-content-jsonld", key = "#contentId"),
+        @CacheEvict(value = "ai-search-results", allEntries = true),
+        @CacheEvict(value = "ai-sitemap", allEntries = true)
+    })
+    public void unpublishContent(Long contentId) {
+        log.info("User unpublishing content: {}", contentId);
+        
+        Content content = contentRepository.findById(contentId)
+            .orElseThrow(() -> new ValidationException("内容不存在"));
+        
+        // 只能下架已发布的内容
+        if (content.getStatus() != Content.ContentStatus.PUBLISHED) {
+            throw new ValidationException("只能下架已发布的内容");
+        }
+        
+        // 将状态改为已拒绝（下架）
+        content.setStatus(Content.ContentStatus.REJECTED);
+        content.setRejectReason("用户自行下架");
+        contentRepository.save(content);
+        log.info("Content unpublished by user: {}", contentId);
+    }
+    
+    /**
+     * 管理员删除内容（可以删除任何状态的内容）
+     */
+    @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "publishedContents", allEntries = true),
+        @CacheEvict(value = "contentsByCategory", allEntries = true),
+        @CacheEvict(value = "homepage-contents", allEntries = true),
+        @CacheEvict(value = "ai-content-jsonld", key = "#contentId"),
+        @CacheEvict(value = "ai-search-results", allEntries = true),
+        @CacheEvict(value = "ai-sitemap", allEntries = true)
+    })
+    public void adminDeleteContent(Long contentId) {
+        log.info("Admin deleting content: {}", contentId);
+        
+        Content content = contentRepository.findById(contentId)
+            .orElseThrow(() -> new ValidationException("内容不存在"));
+        
+        contentRepository.delete(content);
+        log.info("Content deleted by admin: {}", contentId);
+    }
+    
+    /**
+     * 管理员下架内容（可以将任何状态的内容改为已拒绝状态）
+     */
+    @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "publishedContents", allEntries = true),
+        @CacheEvict(value = "contentsByCategory", allEntries = true),
+        @CacheEvict(value = "homepage-contents", allEntries = true),
+        @CacheEvict(value = "ai-content-jsonld", key = "#contentId"),
+        @CacheEvict(value = "ai-search-results", allEntries = true),
+        @CacheEvict(value = "ai-sitemap", allEntries = true)
+    })
+    public void adminUnpublishContent(Long contentId, String reason) {
+        log.info("Admin unpublishing content: {}", contentId);
+        
+        Content content = contentRepository.findById(contentId)
+            .orElseThrow(() -> new ValidationException("内容不存在"));
+        
+        // 主管理员可以下架任何状态的内容
+        content.setStatus(Content.ContentStatus.REJECTED);
+        content.setRejectReason(reason != null ? reason : "管理员下架");
+        contentRepository.save(content);
+        log.info("Content unpublished by admin: {}, previous status: {}", contentId, content.getStatus());
+    }
+    
+    /**
+     * 获取审核统计信息
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getReviewStatistics(Long adminId) {
+        long totalReviewed = contentRepository.countByReviewedBy(adminId);
+        long approved = contentRepository.countByReviewedByAndStatus(adminId, Content.ContentStatus.APPROVED);
+        long rejected = contentRepository.countByReviewedByAndStatus(adminId, Content.ContentStatus.REJECTED);
+        long published = contentRepository.countByReviewedByAndStatus(adminId, Content.ContentStatus.PUBLISHED);
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalReviewed", totalReviewed);
+        stats.put("approved", approved);
+        stats.put("rejected", rejected);
+        stats.put("published", published);
+        
+        return stats;
+    }
+    
+    /**
+     * 获取指定管理员的审核记录
+     */
+    @Transactional(readOnly = true)
+    public Page<ContentDTO> getReviewHistory(Long adminId, Pageable pageable) {
+        Page<Content> contents = contentRepository.findByReviewedBy(adminId, pageable);
+        
+        // 收集所有需要查询的审批人ID（这里主要是 adminId，但为了通用性，还是查询一下）
+        List<Long> reviewerIds = contents.getContent().stream()
+                .map(Content::getReviewedBy)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        // 批量查询审批人信息
+        final Map<Long, User> reviewerMap;
+        if (!reviewerIds.isEmpty()) {
+            reviewerMap = userRepository.findAllById(reviewerIds).stream()
+                    .collect(Collectors.toMap(User::getId, reviewer -> reviewer));
+        } else {
+            reviewerMap = new HashMap<>();
+        }
+        
+        // 转换为DTO并填充审批人信息
+        final Map<Long, User> finalReviewerMap = reviewerMap;
+        return contents.map(content -> convertToDTO(content, finalReviewerMap));
+    }
+    
+    /**
+     * 获取所有审核记录（主管理员）
+     */
+    @Transactional(readOnly = true)
+    public Page<ContentDTO> getAllReviewHistory(Pageable pageable) {
+        // 查询所有已审核的内容（reviewedBy不为null）
+        Page<Content> contents = contentRepository.findAllReviewed(pageable);
+        return contents.map(this::convertToDTO);
+    }
+    
+    /**
+     * 获取所有内容（主管理员）- 包括所有状态
+     */
+    @Transactional(readOnly = true)
+    public Page<ContentDTO> getAllContents(String status, String search, Pageable pageable) {
+        log.info("Fetching all contents, status: {}, search: {}", status, search);
+        
+        Page<Content> contents;
+        
+        if (status != null && !status.isEmpty()) {
+            try {
+                Content.ContentStatus contentStatus = Content.ContentStatus.valueOf(status);
+                if (search != null && !search.isEmpty()) {
+                    // 按状态和关键词搜索
+                    contents = contentRepository.findByStatusAndTitleContainingOrAuthorNameContaining(
+                        contentStatus, search, search, pageable);
+                } else {
+                    contents = contentRepository.findByStatus(contentStatus, pageable);
+                }
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid status: {}", status);
+                // 如果状态无效，按搜索条件查询
+                if (search != null && !search.isEmpty()) {
+                    contents = contentRepository.findByTitleContainingOrAuthorNameContaining(search, search, pageable);
+                } else {
+                    contents = contentRepository.findAll(pageable);
+                }
+            }
+        } else if (search != null && !search.isEmpty()) {
+            // 只按关键词搜索
+            contents = contentRepository.findByTitleContainingOrAuthorNameContaining(search, search, pageable);
+        } else {
+            // 获取所有内容，按创建时间倒序
+            contents = contentRepository.findAll(
+                org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(), 
+                    pageable.getPageSize(),
+                    org.springframework.data.domain.Sort.by("createdAt").descending()
+                )
+            );
+        }
+        
+        // 收集所有需要查询的审批人ID
+        List<Long> reviewerIds = contents.getContent().stream()
+                .map(Content::getReviewedBy)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        // 批量查询审批人信息
+        final Map<Long, User> reviewerMap;
+        if (!reviewerIds.isEmpty()) {
+            reviewerMap = userRepository.findAllById(reviewerIds).stream()
+                    .collect(Collectors.toMap(User::getId, reviewer -> reviewer));
+        } else {
+            reviewerMap = new HashMap<>();
+        }
+        
+        // 转换为DTO并填充审批人信息
+        final Map<Long, User> finalReviewerMap = reviewerMap;
+        return contents.map(content -> convertToDTO(content, finalReviewerMap));
     }
 }

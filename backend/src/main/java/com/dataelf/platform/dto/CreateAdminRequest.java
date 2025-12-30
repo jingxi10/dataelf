@@ -1,5 +1,6 @@
 package com.dataelf.platform.dto;
 
+import com.dataelf.platform.entity.User;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -24,4 +25,8 @@ public class CreateAdminRequest {
     @NotBlank(message = "密码不能为空")
     @Size(min = 6, max = 50, message = "密码长度必须在6-50位之间")
     private String password;
+    
+    private User.AdminType adminType = User.AdminType.NORMAL_ADMIN; // 默认为普通管理员
+    
+    private java.util.List<String> permissions; // 权限菜单列表，如：["user_approve", "user_delete", "content_review", "content_delete"]
 }

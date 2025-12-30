@@ -87,6 +87,16 @@
               </div>
             </el-form-item>
 
+            <el-divider content-position="left">邮件设置</el-divider>
+
+            <el-form-item label="发件人名称">
+              <el-input
+                v-model="basicForm.mailFromName"
+                placeholder="如：数流精灵"
+              />
+              <div class="form-tip">邮件发送时显示的发件人名称，支持中文</div>
+            </el-form-item>
+
             <el-form-item>
               <el-button type="primary" @click="saveBasicSettings">
                 保存设置
@@ -237,6 +247,64 @@
                 <el-button type="primary" @click="saveFooterBottomLinks">保存底部链接</el-button>
               </div>
             </div>
+
+            <el-divider />
+
+            <h4 class="section-label">备案号与版权信息</h4>
+            <div class="copyright-settings">
+              <el-form label-width="100px">
+                <el-form-item label="备案号">
+                  <el-input
+                    v-model="footerCopyright.icp"
+                    placeholder="如：京ICP备12345678号"
+                  />
+                </el-form-item>
+                <el-form-item label="版权信息">
+                  <el-input
+                    v-model="footerCopyright.copyright"
+                    placeholder="如：© 2024 数流精灵 版权所有"
+                  />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="saveFooterCopyright">保存备案与版权信息</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+
+            <el-divider />
+
+            <h4 class="section-label">首页社交图标链接</h4>
+            <div class="social-links-settings">
+              <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px">
+                配置首页底部社交图标的链接地址
+              </el-alert>
+              <el-form label-width="120px">
+                <el-form-item label="分享链接">
+                  <el-input
+                    v-model="socialLinks.share"
+                    placeholder="如: https://example.com/share 或 /share"
+                  />
+                  <div class="form-tip">分享图标（三个点V形）的链接地址</div>
+                </el-form-item>
+                <el-form-item label="评论链接">
+                  <el-input
+                    v-model="socialLinks.comment"
+                    placeholder="如: https://example.com/comment 或 /comment"
+                  />
+                  <div class="form-tip">评论图标（气泡）的链接地址</div>
+                </el-form-item>
+                <el-form-item label="链接地址">
+                  <el-input
+                    v-model="socialLinks.link"
+                    placeholder="如: https://example.com/link 或 /link"
+                  />
+                  <div class="form-tip">链接图标（回形针）的链接地址</div>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="saveSocialLinks">保存社交链接</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -248,7 +316,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, Delete } from '@element-plus/icons-vue'
-import { getPublicConfig, getAllConfig, updateConfig } from '@/api/system'
+import { getPublicConfig, getAllConfig, updateConfig, uploadLogo } from '@/api/system'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -264,7 +332,8 @@ const basicForm = ref({
   heroTitle: '',
   heroSubtitle: '',
   heroBgColor: '',
-  heroTextColor: ''
+  heroTextColor: '',
+  mailFromName: '数流精灵'
 })
 
 // 页脚链接配置
@@ -280,6 +349,19 @@ const footerBottomLinks = ref([
   { name: 'AI数据接口', url: '#' },
   { name: '机器人协议', url: '#' }
 ])
+
+// 备案号与版权信息
+const footerCopyright = ref({
+  icp: '',
+  copyright: ''
+})
+
+// 社交链接配置
+const socialLinks = ref({
+  share: '#',
+  comment: '#',
+  link: '#'
+})
 
 // Hero 预览样式
 const heroPreviewStyle = computed(() => {
@@ -311,7 +393,8 @@ const loadSettings = async () => {
       heroTitle: config.heroTitle || '',
       heroSubtitle: config.heroSubtitle || '',
       heroBgColor: config.heroBgColor || '',
-      heroTextColor: config.heroTextColor || ''
+      heroTextColor: config.heroTextColor || '',
+      mailFromName: config.mailFromName || '数流精灵'
     }
     currentLogoUrl.value = config.logoUrl || ''
     // 加载页脚链接
@@ -336,6 +419,40 @@ const loadSettings = async () => {
         console.error('解析页脚底部链接失败:', e)
       }
     }
+    // 加载备案号与版权信息
+    if (config.footerIcp) {
+      footerCopyright.value.icp = config.footerIcp
+    }
+    if (config.footerCopyright) {
+      footerCopyright.value.copyright = config.footerCopyright
+    }
+    // 加载社交链接配置
+    if (config.socialLinks) {
+      try {
+        const links = typeof config.socialLinks === 'string' ? JSON.parse(config.socialLinks) : config.socialLinks
+        if (links && typeof links === 'object') {
+          socialLinks.value = {
+            share: links.share || '#',
+            comment: links.comment || '#',
+            link: links.link || '#'
+          }
+        }
+      } catch (e) {
+        console.error('解析社交链接配置失败:', e)
+      }
+    }
+    // 加载邮件发件人名称配置（管理员专用）
+    try {
+      const mailConfigResponse = await getAllConfig()
+      const allConfigs = mailConfigResponse.data || mailConfigResponse
+      if (allConfigs && allConfigs['mail.from.name']) {
+        basicForm.value.mailFromName = allConfigs['mail.from.name']
+      }
+    } catch (e) {
+      console.error('加载邮件配置失败:', e)
+      // 如果加载失败，使用默认值
+      basicForm.value.mailFromName = '数流精灵'
+    }
   } catch (error) {
     console.error('Failed to load settings:', error)
     ElMessage.error('加载设置失败')
@@ -352,7 +469,8 @@ const saveBasicSettings = async () => {
       { configKey: 'site.hero.title', configValue: basicForm.value.heroTitle, description: '首页标题' },
       { configKey: 'site.hero.subtitle', configValue: basicForm.value.heroSubtitle, description: '首页副标题' },
       { configKey: 'site.hero.bgColor', configValue: basicForm.value.heroBgColor, description: 'Hero背景颜色' },
-      { configKey: 'site.hero.textColor', configValue: basicForm.value.heroTextColor, description: 'Hero文字颜色' }
+      { configKey: 'site.hero.textColor', configValue: basicForm.value.heroTextColor, description: 'Hero文字颜色' },
+      { configKey: 'mail.from.name', configValue: basicForm.value.mailFromName || '数流精灵', description: '邮件发件人名称' }
     ]
 
     for (const config of configs) {
@@ -448,6 +566,41 @@ const saveFooterBottomLinks = async () => {
     ElMessage.success('底部链接保存成功')
   } catch (error) {
     console.error('保存底部链接失败:', error)
+    ElMessage.error('保存失败')
+  }
+}
+
+// 保存备案号与版权信息
+const saveFooterCopyright = async () => {
+  try {
+    await updateConfig({
+      configKey: 'site.footer.icp',
+      configValue: footerCopyright.value.icp,
+      description: '备案号'
+    })
+    await updateConfig({
+      configKey: 'site.footer.copyright',
+      configValue: footerCopyright.value.copyright,
+      description: '版权信息'
+    })
+    ElMessage.success('备案与版权信息保存成功')
+  } catch (error) {
+    console.error('保存备案与版权信息失败:', error)
+    ElMessage.error('保存失败')
+  }
+}
+
+// 保存社交链接
+const saveSocialLinks = async () => {
+  try {
+    await updateConfig({
+      configKey: 'site.social.links',
+      configValue: JSON.stringify(socialLinks.value),
+      description: '首页社交图标链接配置'
+    })
+    ElMessage.success('社交链接保存成功')
+  } catch (error) {
+    console.error('保存社交链接失败:', error)
     ElMessage.error('保存失败')
   }
 }
@@ -616,6 +769,18 @@ onMounted(() => {
 }
 
 .bottom-links-section {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.copyright-settings {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.social-links-settings {
   background: #f5f7fa;
   border-radius: 8px;
   padding: 16px;

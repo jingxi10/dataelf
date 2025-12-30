@@ -16,6 +16,8 @@ public class CommentDTO {
     private Long contentId;
     private String commentText;
     private LocalDateTime createdAt;
+    private Boolean isPinned;
+    private Boolean isDeleted;
     
     // 可选：用户信息
     private String userEmail;

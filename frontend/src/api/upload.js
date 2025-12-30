@@ -28,7 +28,9 @@ export function uploadVideo(file) {
   return axios.post('/upload/video', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    // 增加超时时间，大文件上传需要更长时间
+    timeout: 300000 // 5分钟
   })
 }
 

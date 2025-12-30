@@ -12,4 +12,10 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     Page<Comment> findByContentIdOrderByCreatedAtDesc(Long contentId, Pageable pageable);
     
     Long countByContentId(Long contentId);
+    
+    // 查询未删除的评论，置顶的在前
+    Page<Comment> findByContentIdAndIsDeletedFalseOrderByIsPinnedDescCreatedAtDesc(Long contentId, Pageable pageable);
+    
+    // 统计未删除的评论数量
+    Long countByContentIdAndIsDeletedFalse(Long contentId);
 }

@@ -18,6 +18,7 @@ public class ContentDTO {
     private Long id;
     private Long userId;
     private Long templateId;
+    private String templateName;
     private String title;
     private Map<String, Object> structuredData;
     private String jsonLd;
@@ -35,8 +36,12 @@ public class ContentDTO {
     private LocalDateTime reviewedAt;
     private LocalDateTime publishedAt;
     private Long reviewedBy;
+    private String reviewedByName; // 审批人邮箱（用于显示）
     private String rejectReason;
     private Integer viewCount;
+    private Long likeCount;
+    private Long favoriteCount;
+    private Long commentCount;
     private List<Long> categoryIds;
     private List<String> tagNames;
 }

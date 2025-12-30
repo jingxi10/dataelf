@@ -34,7 +34,7 @@
       </el-col>
       <el-col :span="4">
         <el-button type="primary" @click="goToEditor" style="height: 100%; width: 100%;">
-          <el-icon><Edit /></el-icon>
+          <el-icon style="animation: none;"><Edit /></el-icon>
           写文章
         </el-button>
       </el-col>
@@ -55,6 +55,7 @@
             <el-option label="全部" value="" />
             <el-option label="草稿" value="DRAFT" />
             <el-option label="待审核" value="PENDING_REVIEW" />
+            <el-option label="已通过" value="APPROVED" />
             <el-option label="已发布" value="PUBLISHED" />
             <el-option label="已拒绝" value="REJECTED" />
           </el-select>
@@ -69,7 +70,7 @@
       >
         <el-table-column prop="id" label="ID" width="80" />
         
-        <el-table-column prop="title" label="标题" min-width="250">
+        <el-table-column prop="title" label="标题" min-width="200">
           <template #default="{ row }">
             <el-link type="primary" @click="viewContent(row)">
               {{ row.title }}
@@ -85,40 +86,49 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="viewCount" label="浏览量" width="100" />
+        <el-table-column prop="viewCount" label="浏览量" width="80" />
 
-        <el-table-column prop="createdAt" label="创建时间" width="170">
+        <el-table-column prop="createdAt" label="创建时间" width="160">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'DRAFT' || row.status === 'REJECTED'"
-              type="primary"
-              size="small"
-              @click="editContent(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              v-if="row.status === 'PUBLISHED'"
-              type="success"
-              size="small"
-              @click="viewContent(row)"
-            >
-              查看
-            </el-button>
-            <el-button
-              v-if="row.status === 'REJECTED'"
-              type="info"
-              size="small"
-              @click="showRejectReason(row)"
-            >
-              原因
-            </el-button>
+            <!-- 草稿：编辑、提交审核、删除 -->
+            <template v-if="row.status === 'DRAFT'">
+              <el-button type="primary" size="small" @click="editContent(row)">编辑</el-button>
+              <el-button type="success" size="small" @click="submitForReview(row)">提交审核</el-button>
+              <el-button type="danger" size="small" @click="deleteContent(row)">删除</el-button>
+            </template>
+            
+            <!-- 待审核：查看、删除 -->
+            <template v-else-if="row.status === 'PENDING_REVIEW'">
+              <el-button type="info" size="small" @click="viewContent(row)">查看</el-button>
+              <el-button type="danger" size="small" @click="deleteContent(row)">删除</el-button>
+            </template>
+            
+            <!-- 已通过：发布、编辑、删除 -->
+            <template v-else-if="row.status === 'APPROVED'">
+              <el-button type="success" size="small" @click="publishContent(row)">发布</el-button>
+              <el-button type="primary" size="small" @click="editContent(row)">编辑</el-button>
+              <el-button type="danger" size="small" @click="deleteContent(row)">删除</el-button>
+            </template>
+            
+            <!-- 已发布：查看、下架、删除 -->
+            <template v-else-if="row.status === 'PUBLISHED'">
+              <el-button type="success" size="small" @click="viewContent(row)">查看</el-button>
+              <el-button type="warning" size="small" @click="unpublishContent(row)">下架</el-button>
+              <el-button type="danger" size="small" @click="deleteContent(row)">删除</el-button>
+            </template>
+            
+            <!-- 已拒绝：编辑、查看原因、删除 -->
+            <template v-else-if="row.status === 'REJECTED'">
+              <el-button type="primary" size="small" @click="editContent(row)">编辑</el-button>
+              <el-button type="info" size="small" @click="showRejectReason(row)">原因</el-button>
+              <el-button type="danger" size="small" @click="deleteContent(row)">删除</el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -152,13 +162,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit } from '@element-plus/icons-vue'
 import axios from '@/api/axios'
+import { useAuthStore } from '@/stores/auth'
+import { submitForReview as submitContentForReview, publishContent as publishContentApi, deleteContent as deleteContentApi, adminDeleteContent as adminDeleteContentApi, unpublishContent as unpublishContentApi } from '@/api/content'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const contentList = ref([])
@@ -240,7 +253,8 @@ const goToEditor = () => {
 }
 
 const editContent = (row) => {
-  router.push({ name: 'editor-edit', params: { id: row.id } })
+  // 跳转到编辑页面，带上内容ID
+  router.push({ path: '/editor/' + row.id })
 }
 
 const viewContent = (row) => {
@@ -252,6 +266,114 @@ const showRejectReason = (row) => {
   rejectDialogVisible.value = true
 }
 
+// 提交审核
+const submitForReview = async (row) => {
+  try {
+    await ElMessageBox.confirm('确认提交此内容进行审核？', '提交审核', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+    
+    await submitContentForReview(row.id)
+    ElMessage.success('提交成功，请等待审核')
+    loadContents()
+    loadStats()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('提交审核失败:', error)
+      ElMessage.error('提交审核失败')
+    }
+  }
+}
+
+// 发布内容
+const publishContent = async (row) => {
+  try {
+    await ElMessageBox.confirm('确认发布此内容？发布后将公开显示。', '发布内容', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'success'
+    })
+    
+    await publishContentApi(row.id)
+    ElMessage.success('发布成功')
+    loadContents()
+    loadStats()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('发布失败:', error)
+      ElMessage.error('发布失败')
+    }
+  }
+}
+
+// 下架内容
+const unpublishContent = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      '确认下架此内容？下架后内容将不再公开显示。',
+      '下架内容',
+      {
+        confirmButtonText: '确认下架',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    await unpublishContentApi(row.id)
+    ElMessage.success('内容已下架')
+    loadContents()
+    loadStats()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('下架失败:', error)
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || '下架失败'
+      ElMessage.error(errorMessage)
+    }
+  }
+}
+
+// 删除内容（会员可以删除自己发布的内容）
+const deleteContent = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      '确认删除此内容？删除后无法恢复。',
+      '删除内容',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    // 会员可以删除自己发布的内容（所有状态）
+    await deleteContentApi(row.id)
+    
+    ElMessage.success('删除成功')
+    loadContents()
+    loadStats()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || '删除失败'
+      ElMessage.error(errorMessage)
+    }
+  }
+}
+
+// 获取状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    'DRAFT': '草稿',
+    'PENDING_REVIEW': '待审核',
+    'APPROVED': '已审核通过',
+    'PUBLISHED': '已发布',
+    'REJECTED': '已拒绝'
+  }
+  return statusMap[status] || status
+}
+
 const getStatusType = (status) => {
   const types = {
     DRAFT: 'info',
@@ -261,17 +383,6 @@ const getStatusType = (status) => {
     REJECTED: 'danger'
   }
   return types[status] || 'info'
-}
-
-const getStatusText = (status) => {
-  const texts = {
-    DRAFT: '草稿',
-    PENDING_REVIEW: '待审核',
-    APPROVED: '已通过',
-    PUBLISHED: '已发布',
-    REJECTED: '已拒绝'
-  }
-  return texts[status] || status
 }
 
 const formatDate = (dateString) => {

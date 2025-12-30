@@ -10,8 +10,41 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const isAdmin = computed(() => user.value?.role === 'ADMIN')
+  const isMainAdmin = computed(() => user.value?.role === 'ADMIN' && user.value?.adminType === 'MAIN_ADMIN')
+  const isNormalAdmin = computed(() => user.value?.role === 'ADMIN' && user.value?.adminType === 'NORMAL_ADMIN')
   const isPending = computed(() => user.value?.status === 'PENDING')
   const isExpired = computed(() => user.value?.status === 'EXPIRED')
+  
+  // 获取用户权限列表
+  const adminPermissions = computed(() => {
+    if (!user.value || !isAdmin.value) return []
+    if (isMainAdmin.value) {
+      // 主管理员拥有所有权限
+      return [
+        'user_approve', 'user_delete', 'content_review', 'content_delete',
+        'content_view_own', 'content_unpublish_own',
+        'template_manage', 'tag_manage', 'category_manage',
+        'data_source_manage', 'system_settings'
+      ]
+    }
+    if (isNormalAdmin.value && user.value.adminPermissions) {
+      try {
+        return typeof user.value.adminPermissions === 'string' 
+          ? JSON.parse(user.value.adminPermissions) 
+          : user.value.adminPermissions
+      } catch (e) {
+        console.error('解析权限失败:', e)
+        return []
+      }
+    }
+    return []
+  })
+  
+  // 检查是否有权限
+  const hasPermission = (permission) => {
+    if (isMainAdmin.value) return true
+    return adminPermissions.value.includes(permission)
+  }
   
   // VIP是否有效（未过期）
   const isVipValid = computed(() => {
@@ -149,10 +182,14 @@ export const useAuthStore = defineStore('auth', () => {
     initialized,
     isAuthenticated,
     isAdmin,
+    isMainAdmin,
+    isNormalAdmin,
     isPending,
     isExpired,
     isVipValid,
     vipExpireAt,
+    adminPermissions,
+    hasPermission,
     setAuth,
     clearAuth,
     initializeAuth,

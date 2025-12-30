@@ -39,7 +39,8 @@ public class FileUploadService {
     );
     
     private static final List<String> ALLOWED_VIDEO_TYPES = Arrays.asList(
-        "video/mp4", "video/webm", "video/ogg", "video/quicktime"
+        "video/mp4", "video/webm", "video/ogg", "video/quicktime",
+        "video/x-msvideo", "video/avi", "video/x-matroska", "video/mkv"
     );
     
     private static final List<String> ALLOWED_DOCUMENT_TYPES = Arrays.asList(
@@ -127,8 +128,15 @@ public class FileUploadService {
             ossClient.putObject(putRequest);
             
             // 生成访问URL
-            String fileUrl = ossConfig.getBaseUrl() + "/" + objectKey;
-            log.info("File uploaded to OSS by user {}: {}", userId, fileUrl);
+            String baseUrl = ossConfig.getBaseUrl();
+            // 确保baseUrl不以/结尾，objectKey不以/开头
+            String fileUrl;
+            if (baseUrl.endsWith("/")) {
+                fileUrl = baseUrl + objectKey;
+            } else {
+                fileUrl = baseUrl + "/" + objectKey;
+            }
+            log.info("File uploaded to OSS by user {}: {} (size: {} bytes)", userId, fileUrl, file.getSize());
             
             return fileUrl;
         } catch (Exception e) {
@@ -188,12 +196,34 @@ public class FileUploadService {
         }
         
         String contentType = file.getContentType();
+        String filename = file.getOriginalFilename();
+        
+        // 如果contentType为空，尝试从文件名推断
+        if (contentType == null && filename != null) {
+            String extension = getFileExtension(filename).toLowerCase();
+            if (extension.equals(".mp4")) {
+                contentType = "video/mp4";
+            } else if (extension.equals(".webm")) {
+                contentType = "video/webm";
+            } else if (extension.equals(".ogg") || extension.equals(".ogv")) {
+                contentType = "video/ogg";
+            } else if (extension.equals(".mov")) {
+                contentType = "video/quicktime";
+            } else if (extension.equals(".avi")) {
+                contentType = "video/x-msvideo";
+            } else if (extension.equals(".mkv")) {
+                contentType = "video/x-matroska";
+            }
+        }
+        
         if (contentType == null || !allowedTypes.contains(contentType)) {
-            throw new ValidationException("不支持的" + typeName + "格式");
+            throw new ValidationException("不支持的" + typeName + "格式: " + contentType + 
+                (filename != null ? " (文件: " + filename + ")" : ""));
         }
         
         if (file.getSize() > maxSize) {
-            throw new ValidationException(typeName + "大小不能超过 " + (maxSize / 1024 / 1024) + "MB");
+            throw new ValidationException(typeName + "大小不能超过 " + (maxSize / 1024 / 1024) + "MB，当前文件大小: " + 
+                String.format("%.2f", file.getSize() / 1024.0 / 1024.0) + "MB");
         }
     }
     

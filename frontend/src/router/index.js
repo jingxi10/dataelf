@@ -103,6 +103,12 @@ const router = createRouter({
           meta: { title: '内容审核', requiresAdmin: true }
         },
         {
+          path: 'all-contents',
+          name: 'admin-all-contents',
+          component: () => import('@/views/admin/AllContentsManagement.vue'),
+          meta: { title: '所有内容管理', requiresAdmin: true }
+        },
+        {
           path: 'settings',
           name: 'admin-settings',
           component: () => import('@/views/admin/SystemSettings.vue'),

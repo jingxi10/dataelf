@@ -1,5 +1,33 @@
 <template>
   <div class="content-review">
+    <!-- 统计卡片 -->
+    <el-row :gutter="20" class="stats-row">
+      <el-col :span="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-value">{{ total }}</div>
+          <div class="stat-label">待审核</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-value total">{{ stats.totalReviewed }}</div>
+          <div class="stat-label">已审核总数</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-value approved">{{ stats.approved }}</div>
+          <div class="stat-label">已通过</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-value rejected">{{ stats.rejected }}</div>
+          <div class="stat-label">已拒绝</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 审核队列列表 -->
     <el-card class="review-queue-card">
       <template #header>
@@ -25,6 +53,13 @@
       >
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="title" label="标题" min-width="200" />
+        <el-table-column label="模板" width="150">
+          <template #default="{ row }">
+            <el-tag type="info" size="small">
+              {{ row.templateName || '未知模板' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="作者" width="150">
           <template #default="{ row }">
             {{ row.authorName || '未知' }}
@@ -45,7 +80,13 @@
             {{ formatDateTime(row.submittedAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column prop="reviewedByName" label="审批人" width="150">
+          <template #default="{ row }">
+            <span v-if="row.reviewedByName">{{ row.reviewedByName }}</span>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="440" fixed="right">
           <template #default="{ row }">
             <el-button 
               type="primary" 
@@ -75,6 +116,24 @@
             >
               直接发布
             </el-button>
+            <!-- 主管理员可以下架和删除任何内容 -->
+            <template v-if="isMainAdmin">
+              <el-button 
+                v-if="row.status !== 'REJECTED'"
+                type="warning" 
+                size="small"
+                @click.stop="handleUnpublish(row)"
+              >
+                下架
+              </el-button>
+              <el-button 
+                type="danger" 
+                size="small"
+                @click.stop="handleDelete(row.id)"
+              >
+                删除
+              </el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -125,12 +184,24 @@
               {{ formatScore(selectedContent.integrityScore) }}
             </el-tag>
           </el-descriptions-item>
+          <el-descriptions-item v-if="selectedContent.reviewedByName" label="审批人">
+            {{ selectedContent.reviewedByName }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="selectedContent.reviewedAt" label="审批时间">
+            {{ formatDateTime(selectedContent.reviewedAt) }}
+          </el-descriptions-item>
         </el-descriptions>
 
         <!-- 版权说明 -->
         <div v-if="selectedContent.copyrightNotice" class="copyright-section">
           <h4>版权说明</h4>
           <p>{{ selectedContent.copyrightNotice }}</p>
+        </div>
+
+        <!-- 文章正文内容 -->
+        <div class="article-body-section">
+          <h4>文章正文</h4>
+          <div class="article-body-content" v-html="getArticleBody(selectedContent)"></div>
         </div>
 
         <!-- 完整性详情 -->
@@ -210,6 +281,38 @@
       </template>
     </el-dialog>
 
+    <!-- 下架对话框 -->
+    <el-dialog
+      v-model="unpublishDialogVisible"
+      title="下架内容"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="unpublishForm" label-width="100px">
+        <el-form-item label="下架原因">
+          <el-input
+            v-model="unpublishForm.reason"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入下架原因（可选）"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="unpublishDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="confirmUnpublish"
+        >
+          确认下架
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 拒绝原因对话框 -->
     <el-dialog
       v-model="rejectDialogVisible"
@@ -244,7 +347,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { 
@@ -252,8 +355,23 @@ import {
   approveContent, 
   rejectContent, 
   directPublish,
-  checkIntegrity 
+  checkIntegrity,
+  adminDeleteContent,
+  adminUnpublishContent,
+  getReviewStatistics
 } from '@/api/admin'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const isMainAdmin = computed(() => authStore.isMainAdmin)
+
+// 统计数据
+const stats = ref({
+  totalReviewed: 0,
+  approved: 0,
+  rejected: 0,
+  published: 0
+})
 
 // 数据状态
 const loading = ref(false)
@@ -274,6 +392,29 @@ const rejectForm = ref({
   contentId: null,
   reason: ''
 })
+
+// 下架对话框
+const unpublishDialogVisible = ref(false)
+const unpublishForm = ref({
+  contentId: null,
+  reason: ''
+})
+
+// 加载统计数据
+const loadStats = async () => {
+  try {
+    const response = await getReviewStatistics()
+    const data = response.data || response
+    stats.value = {
+      totalReviewed: data.totalReviewed || 0,
+      approved: data.approved || 0,
+      rejected: data.rejected || 0,
+      published: data.published || 0
+    }
+  } catch (error) {
+    console.error('加载统计数据失败:', error)
+  }
+}
 
 // 加载审核队列
 const loadReviewQueue = async () => {
@@ -334,6 +475,28 @@ const formatJson = (jsonStr) => {
   }
 }
 
+// 获取文章正文内容
+const getArticleBody = (content) => {
+  if (!content) return ''
+  
+  // 尝试从 structuredData 中获取 articleBody
+  if (content.structuredData) {
+    const data = typeof content.structuredData === 'string' 
+      ? JSON.parse(content.structuredData) 
+      : content.structuredData
+    if (data.articleBody) {
+      return data.articleBody
+    }
+  }
+  
+  // 尝试从 htmlOutput 中获取
+  if (content.htmlOutput) {
+    return content.htmlOutput
+  }
+  
+  return '<p style="color: #999;">暂无正文内容</p>'
+}
+
 // 处理行点击
 const handleRowClick = (row) => {
   handlePreview(row)
@@ -372,6 +535,7 @@ const handleApprove = async (contentId) => {
     await approveContent(contentId)
     
     ElMessage.success('内容已批准')
+    await loadStats()
     await loadReviewQueue()
   } catch (error) {
     if (error !== 'cancel') {
@@ -424,6 +588,7 @@ const confirmReject = async () => {
     ElMessage.success('内容已拒绝')
     rejectDialogVisible.value = false
     previewDialogVisible.value = false
+    await loadStats()
     await loadReviewQueue()
   } catch (error) {
     console.error('拒绝内容失败:', error)
@@ -450,11 +615,69 @@ const handleDirectPublish = async (contentId) => {
     await directPublish(contentId)
     
     ElMessage.success('内容已直接发布')
+    await loadStats()
     await loadReviewQueue()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('直接发布失败:', error)
       ElMessage.error('直接发布失败')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 下架内容
+const handleUnpublish = (row) => {
+  unpublishForm.value = {
+    contentId: row.id,
+    reason: ''
+  }
+  unpublishDialogVisible.value = true
+}
+
+const confirmUnpublish = async () => {
+  loading.value = true
+  try {
+    await adminUnpublishContent(unpublishForm.value.contentId, {
+      reason: unpublishForm.value.reason || '管理员下架'
+    })
+    
+    ElMessage.success('内容已下架')
+    unpublishDialogVisible.value = false
+    await loadStats()
+    await loadReviewQueue()
+  } catch (error) {
+    console.error('下架内容失败:', error)
+    ElMessage.error(error.response?.data?.message || '下架内容失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 删除内容（主管理员可以删除任何状态的内容）
+const handleDelete = async (contentId) => {
+  try {
+    await ElMessageBox.confirm(
+      '确认删除此内容？删除后无法恢复。',
+      '删除内容',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    loading.value = true
+    await adminDeleteContent(contentId)
+    ElMessage.success('删除成功')
+    await loadStats()
+    await loadReviewQueue()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      const errorMessage = error.response?.data?.message || error.response?.data?.error?.message || error.message || '删除失败'
+      ElMessage.error(errorMessage)
     }
   } finally {
     loading.value = false
@@ -483,6 +706,7 @@ const handlePageChange = (newPage) => {
 
 // 组件挂载时加载数据
 onMounted(() => {
+  loadStats()
   loadReviewQueue()
 })
 </script>
@@ -490,10 +714,51 @@ onMounted(() => {
 <style scoped>
 .content-review {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stats-row {
+  margin-bottom: 0;
+}
+
+.stat-card {
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.stat-value.total {
+  color: #409eff;
+}
+
+.stat-value.approved {
+  color: #67c23a;
+}
+
+.stat-value.rejected {
+  color: #f56c6c;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #909399;
 }
 
 .review-queue-card {
-  height: 100%;
+  flex: 1;
 }
 
 .card-header {
@@ -543,6 +808,36 @@ onMounted(() => {
   margin: 0;
   color: #606266;
   line-height: 1.6;
+}
+
+.article-body-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+}
+
+.article-body-content {
+  padding: 15px;
+  background-color: #fafafa;
+  border-radius: 4px;
+  line-height: 1.8;
+  color: #303133;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.article-body-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 10px 0;
+  border-radius: 4px;
+}
+
+.article-body-content video {
+  max-width: 100%;
+  margin: 10px 0;
 }
 
 .integrity-section {

@@ -92,6 +92,24 @@ export function deleteContent(contentId) {
 }
 
 /**
+ * 管理员删除内容（可以删除任何状态的内容）
+ * @param {number} contentId - 内容ID
+ * @returns {Promise}
+ */
+export function adminDeleteContent(contentId) {
+  return axios.delete(`/admin/content/${contentId}`)
+}
+
+/**
+ * 用户下架自己发布的内容
+ * @param {number} contentId - 内容ID
+ * @returns {Promise}
+ */
+export function unpublishContent(contentId) {
+  return axios.post(`/content/${contentId}/unpublish`)
+}
+
+/**
  * 获取多格式输出
  * @param {number} contentId - 内容ID
  * @returns {Promise}
@@ -203,6 +221,17 @@ export function exportAsMarkdown(contentId) {
  */
 export function exportAsCsv(contentId) {
   return axios.get(`/export/${contentId}/csv`, {
+    responseType: 'blob'
+  })
+}
+
+/**
+ * 导出内容为Word文档格式
+ * @param {number} contentId - 内容ID
+ * @returns {Promise}
+ */
+export function exportAsWord(contentId) {
+  return axios.get(`/export/${contentId}/word`, {
     responseType: 'blob'
   })
 }

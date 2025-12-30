@@ -72,6 +72,19 @@
               </p>
             </div>
           </div>
+
+          <!-- 审核信息 -->
+          <div v-if="content.reviewedByName || content.reviewedAt" class="review-section">
+            <el-divider content-position="left">审核信息</el-divider>
+            <div class="review-info">
+              <p v-if="content.reviewedByName">
+                <strong>审批人：</strong>{{ content.reviewedByName }}
+              </p>
+              <p v-if="content.reviewedAt">
+                <strong>审批时间：</strong>{{ formatDate(content.reviewedAt) }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- 交互按钮区域 -->
@@ -375,6 +388,24 @@ onMounted(() => {
 }
 
 .copyright-info strong {
+  color: #303133;
+  margin-right: 8px;
+}
+
+.review-section {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.review-info p {
+  margin: 8px 0;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.review-info strong {
   color: #303133;
   margin-right: 8px;
 }

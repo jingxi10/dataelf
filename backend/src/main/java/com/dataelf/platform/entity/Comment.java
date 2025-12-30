@@ -31,6 +31,12 @@ public class Comment {
     @Column(name = "comment_text", nullable = false, columnDefinition = "TEXT")
     private String commentText;
     
+    @Column(name = "is_pinned", nullable = false)
+    private Boolean isPinned = false;
+    
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
+    
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

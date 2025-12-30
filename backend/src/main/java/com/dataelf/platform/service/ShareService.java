@@ -30,10 +30,7 @@ public class ShareService {
         Content content = contentRepository.findById(contentId)
             .orElseThrow(() -> new ValidationException("内容不存在"));
         
-        if (content.getStatus() != Content.ContentStatus.PUBLISHED) {
-            throw new ValidationException("只能分享已发布的内容");
-        }
-        
+        // 允许分享所有状态的内容（包括未发布的内容）
         String contentUrl = baseUrl + "/content/" + contentId;
         String title = content.getTitle();
         String description = extractDescription(content);
@@ -44,7 +41,7 @@ public class ShareService {
         response.setDescription(description);
         response.setShareLinks(generateSocialMediaLinks(contentUrl, title, description));
         
-        log.info("Generated share links for content: {}", contentId);
+        log.info("Generated share links for content: {} (status: {})", contentId, content.getStatus());
         
         return response;
     }

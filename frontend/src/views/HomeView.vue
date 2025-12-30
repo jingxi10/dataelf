@@ -8,7 +8,6 @@
           <span class="logo-text">{{ siteName }}</span>
         </div>
         <nav class="nav">
-          <router-link to="/editor" class="nav-link">创建内容</router-link>
           <router-link to="/my-content" class="nav-link">我的内容</router-link>
           <router-link to="/favorites" class="nav-link">我的收藏</router-link>
           <router-link v-if="isAuthenticated && isAdmin" to="/admin/users" class="nav-link">管理后台</router-link>
@@ -165,13 +164,13 @@
               <span class="card-author">{{ content.authorName || '匿名' }}</span>
               <div class="card-actions">
                 <span class="action-item">
-                  <el-icon><Star /></el-icon> 点赞
+                  <el-icon><Star /></el-icon> {{ content.likeCount || 0 }}
                 </span>
                 <span class="action-item">
-                  <el-icon><Collection /></el-icon> 收藏
+                  <el-icon><Collection /></el-icon> {{ content.favoriteCount || 0 }}
                 </span>
                 <span class="action-item">
-                  <el-icon><ChatDotRound /></el-icon> 评论
+                  <el-icon><ChatDotRound /></el-icon> {{ content.commentCount || 0 }}
                 </span>
               </div>
             </div>
@@ -196,23 +195,27 @@
             <h4>{{ siteName }}</h4>
             <p>{{ siteDescription || '专为AI优化的智能结构化数据平台' }}</p>
             <div class="social-links">
-              <a href="#" class="social-link"><el-icon><Share /></el-icon></a>
-              <a href="#" class="social-link"><el-icon><ChatDotRound /></el-icon></a>
-              <a href="#" class="social-link"><el-icon><Link /></el-icon></a>
+              <a :href="socialLinks.share" target="_blank" rel="noopener noreferrer" class="social-link"><el-icon><Share /></el-icon></a>
+              <a :href="socialLinks.comment" target="_blank" rel="noopener noreferrer" class="social-link"><el-icon><ChatDotRound /></el-icon></a>
+              <a :href="socialLinks.link" target="_blank" rel="noopener noreferrer" class="social-link"><el-icon><Link /></el-icon></a>
             </div>
           </div>
           
           <!-- 动态页脚链接组 -->
           <div v-for="group in footerLinkGroups" :key="group.group" class="footer-links">
             <h5>{{ group.group }}</h5>
-            <a v-for="link in group.links" :key="link.name" :href="link.url">{{ link.name }}</a>
+            <a v-for="link in group.links" :key="link.name" :href="link.url" target="_blank" rel="noopener noreferrer">{{ link.name }}</a>
           </div>
         </div>
         
         <div class="footer-bottom">
-          <p>© 2024 {{ siteName }}. 保留所有权利</p>
+          <div class="footer-copyright-info">
+            <p v-if="footerCopyright">{{ footerCopyright }}</p>
+            <p v-else>© 2024 {{ siteName }}. 保留所有权利</p>
+            <p v-if="footerIcp" class="icp-text">{{ footerIcp }}</p>
+          </div>
           <div class="footer-bottom-links">
-            <a v-for="link in footerBottomLinks" :key="link.name" :href="link.url">{{ link.name }}</a>
+            <a v-for="link in footerBottomLinks" :key="link.name" :href="link.url" target="_blank" rel="noopener noreferrer">{{ link.name }}</a>
           </div>
         </div>
       </div>
@@ -274,6 +277,17 @@ const footerBottomLinks = ref([
   { name: 'AI数据接口', url: '#' },
   { name: '机器人协议', url: '#' }
 ])
+
+// 备案号与版权信息
+const footerIcp = ref('')
+const footerCopyright = ref('')
+
+// 社交链接配置
+const socialLinks = ref({
+  share: '#',
+  comment: '#',
+  link: '#'
+})
 
 // Hero 区域动态样式
 const heroStyle = computed(() => {
@@ -592,6 +606,28 @@ const loadConfig = async () => {
         console.error('解析页脚底部链接配置失败:', e)
       }
     }
+    // 加载备案号与版权信息
+    if (config.footerIcp) {
+      footerIcp.value = config.footerIcp
+    }
+    if (config.footerCopyright) {
+      footerCopyright.value = config.footerCopyright
+    }
+    // 加载社交链接配置
+    if (config.socialLinks) {
+      try {
+        const links = typeof config.socialLinks === 'string' ? JSON.parse(config.socialLinks) : config.socialLinks
+        if (links && typeof links === 'object') {
+          socialLinks.value = {
+            share: links.share || '#',
+            comment: links.comment || '#',
+            link: links.link || '#'
+          }
+        }
+      } catch (e) {
+        console.error('解析社交链接配置失败:', e)
+      }
+    }
   } catch (error) {
     console.error('加载配置失败:', error)
   }
@@ -838,21 +874,36 @@ onMounted(() => {
   margin: 0 auto 20px;
 }
 
-.search-box :deep(.el-input__wrapper) {
+.search-box :deep(.el-input-group) {
+  display: flex;
   border-radius: 24px;
-  padding: 4px 4px 4px 20px;
+  overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.search-box :deep(.el-input__wrapper) {
+  border-radius: 0;
+  padding: 4px 4px 4px 20px;
+  box-shadow: none;
+  border: none;
+}
+
 .search-box :deep(.el-input-group__append) {
-  border-radius: 0 24px 24px 0;
+  border-radius: 0;
   background: #1a73e8;
   border: none;
-  padding: 0 20px;
+  padding: 0;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .search-box :deep(.el-input-group__append .el-button) {
   color: #fff;
+  border-radius: 0;
+  height: 100%;
+  padding: 0 24px;
+  border: none;
+  margin: 0;
 }
 
 .hot-tags {
@@ -1219,6 +1270,23 @@ onMounted(() => {
   color: #666;
   font-size: 13px;
   margin: 0;
+}
+
+.footer-copyright-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.footer-copyright-info p {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.icp-text {
+  color: #999;
+  font-size: 12px;
 }
 
 .footer-bottom-links {

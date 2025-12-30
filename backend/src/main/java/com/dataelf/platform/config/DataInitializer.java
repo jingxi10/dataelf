@@ -49,6 +49,7 @@ public class DataInitializer implements CommandLineRunner {
             admin.setPhone("13800000000");
             admin.setPasswordHash(new BCryptPasswordEncoder().encode("admin123"));
             admin.setRole(User.UserRole.ADMIN);
+            admin.setAdminType(User.AdminType.MAIN_ADMIN); // 设置为主管理员
             admin.setStatus(User.UserStatus.APPROVED);
             admin.setApprovedAt(LocalDateTime.now());
             admin.setExpiresAt(LocalDateTime.of(2037, 12, 31, 23, 59, 59)); // 永久有效

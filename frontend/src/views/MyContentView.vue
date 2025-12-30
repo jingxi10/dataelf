@@ -117,6 +117,13 @@
                 查看
               </button>
               <button
+                v-if="content.status === 'PUBLISHED'"
+                @click="unpublishContent(content.id)"
+                class="action-btn warning"
+              >
+                下架
+              </button>
+              <button
                 @click="deleteContent(content.id)"
                 class="action-btn danger"
               >
@@ -173,7 +180,8 @@ import {
   getMyPendingContents,
   submitForReview,
   publishContent as publishContentApi,
-  deleteContent as deleteContentApi
+  deleteContent as deleteContentApi,
+  unpublishContent as unpublishContentApi
 } from '@/api/content'
 import { getPublicConfig } from '@/api/system'
 import NotificationDropdown from '@/components/NotificationDropdown.vue'
@@ -332,6 +340,30 @@ const publishContent = async (id) => {
   }
 }
 
+// 下架内容
+const unpublishContent = async (id) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要下架此内容吗？下架后内容将不再公开显示。',
+      '下架确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    await unpublishContentApi(id)
+    ElMessage.success('下架成功')
+    loadContents(currentPage.value)
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to unpublish content:', error)
+      ElMessage.error(error.response?.data?.error?.message || error.response?.data?.message || '下架失败')
+    }
+  }
+}
+
 const deleteContent = async (id) => {
   try {
     await ElMessageBox.confirm(
@@ -350,7 +382,7 @@ const deleteContent = async (id) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to delete content:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error(error.response?.data?.error?.message || error.response?.data?.message || '删除失败')
     }
   }
 }
@@ -759,6 +791,15 @@ onMounted(() => {
 
 .action-btn.success:hover {
   background: #46B864;
+}
+
+.action-btn.warning {
+  color: #FF9800;
+  border-color: #FF9800;
+}
+
+.action-btn.warning:hover {
+  background: #FFF3E0;
 }
 
 .action-btn.danger {

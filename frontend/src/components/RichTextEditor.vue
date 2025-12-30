@@ -188,6 +188,21 @@ onMounted(() => {
 watch(() => props.modelValue, (newVal) => {
   if (editorRef.value && editorRef.value.innerHTML !== newVal) {
     editorRef.value.innerHTML = newVal || ''
+    // 确保视频标签正确显示
+    nextTick(() => {
+      const videos = editorRef.value?.querySelectorAll('video')
+      videos?.forEach(video => {
+        if (!video.hasAttribute('controls')) {
+          video.setAttribute('controls', '')
+        }
+        if (!video.style.maxWidth) {
+          video.style.maxWidth = '100%'
+        }
+        if (!video.style.height) {
+          video.style.height = 'auto'
+        }
+      })
+    })
   }
 })
 
@@ -271,8 +286,8 @@ function handleVideoSelect(e) {
 
 // 上传图片
 async function handleImageUpload(file) {
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.error('图片大小不能超过10MB')
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过2MB')
     return
   }
   
@@ -319,15 +334,23 @@ async function handleImageUpload(file) {
 
 // 上传视频
 async function handleVideoUpload(file) {
+  // 检查文件大小（100MB）
   if (file.size > 100 * 1024 * 1024) {
     ElMessage.error('视频大小不能超过100MB')
+    return
+  }
+  
+  // 检查文件类型
+  const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/avi']
+  if (!allowedTypes.includes(file.type)) {
+    ElMessage.error('不支持的视频格式，请使用 MP4、WebM、OGG 格式')
     return
   }
   
   uploadingVisible.value = true
   uploadProgress.value = 0
   uploadStatus.value = ''
-  uploadTip.value = '正在上传视频...'
+  uploadTip.value = `正在上传视频... (${(file.size / 1024 / 1024).toFixed(2)}MB)`
   
   try {
     const progressInterval = setInterval(() => {
@@ -343,9 +366,32 @@ async function handleVideoUpload(file) {
     uploadStatus.value = 'success'
     uploadTip.value = '上传成功！'
     
-    const url = response.url || response.data?.url
+    // 处理响应数据 - axios拦截器已经解包，返回的是 response.data.data 或 response.data
+    console.log('视频上传响应:', response)
+    
+    // 尝试多种可能的响应结构
+    let url = null
+    if (typeof response === 'string') {
+      // 如果响应是字符串URL
+      url = response
+    } else if (response?.url) {
+      // 直接有url字段
+      url = response.url
+    } else if (response?.data?.url) {
+      // 嵌套在data中
+      url = response.data.url
+    } else if (response?.data && typeof response.data === 'object') {
+      // 尝试从data对象中获取url
+      url = response.data.url
+    }
+    
     if (url) {
+      console.log('视频上传成功，URL:', url)
       insertVideo(url)
+      ElMessage.success('视频插入成功')
+    } else {
+      console.error('响应中没有找到视频URL，完整响应:', JSON.stringify(response, null, 2))
+      ElMessage.error('视频上传成功，但无法获取URL。响应: ' + JSON.stringify(response))
     }
     
     setTimeout(() => {
@@ -354,12 +400,23 @@ async function handleVideoUpload(file) {
   } catch (error) {
     console.error('视频上传失败:', error)
     uploadStatus.value = 'exception'
-    uploadTip.value = '上传失败'
-    ElMessage.error('视频上传失败')
+    
+    // 显示详细错误信息
+    let errorMessage = '视频上传失败'
+    if (error.response?.data?.error?.message) {
+      errorMessage = error.response.data.error.message
+    } else if (error.response?.data?.message) {
+      errorMessage = error.response.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    uploadTip.value = errorMessage
+    ElMessage.error(errorMessage)
     
     setTimeout(() => {
       uploadingVisible.value = false
-    }, 1000)
+    }, 2000)
   }
 }
 
@@ -372,9 +429,67 @@ function insertImage(url, alt = '') {
 
 // 插入视频
 function insertVideo(url) {
-  const video = `<video src="${url}" controls style="max-width: 100%;"></video>`
-  document.execCommand('insertHTML', false, video)
-  handleInput()
+  // 确保URL是完整的
+  if (!url) {
+    console.error('视频URL为空')
+    ElMessage.error('视频URL无效')
+    return
+  }
+  
+  // URL处理：如果已经是完整URL（http/https开头），直接使用；否则可能需要添加域名
+  let videoUrl = url.trim()
+  
+  // 如果URL不是以http开头，可能需要添加基础URL
+  if (!videoUrl.startsWith('http://') && !videoUrl.startsWith('https://')) {
+    // 如果是OSS URL（通常以bucket名开头），添加https://
+    if (videoUrl.startsWith('/')) {
+      // 相对路径，尝试添加基础URL
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
+      videoUrl = baseUrl + videoUrl
+    } else {
+      // 可能是OSS bucket路径，添加https://
+      videoUrl = 'https://' + videoUrl
+    }
+  }
+  
+  console.log('插入视频，URL:', videoUrl)
+  
+  // 创建video标签
+  const videoHtml = `<video src="${videoUrl}" controls preload="metadata" style="max-width: 100%; height: auto; display: block; margin: 16px 0; border-radius: 8px; background-color: #000;"></video>`
+  
+  // 确保编辑器获得焦点
+  editorRef.value?.focus()
+  
+  // 使用 insertHTML 插入视频
+  try {
+    document.execCommand('insertHTML', false, videoHtml)
+    handleInput()
+    
+    // 验证视频是否成功插入
+    nextTick(() => {
+      const videos = editorRef.value?.querySelectorAll('video')
+      if (videos && videos.length > 0) {
+        const lastVideo = videos[videos.length - 1]
+        console.log('视频已插入，src:', lastVideo.src)
+        
+        // 添加错误处理
+        lastVideo.addEventListener('error', (e) => {
+          console.error('视频加载失败:', e)
+          ElMessage.error('视频加载失败，请检查视频URL是否正确')
+        })
+        
+        // 添加加载成功事件
+        lastVideo.addEventListener('loadedmetadata', () => {
+          console.log('视频元数据加载成功，时长:', lastVideo.duration)
+        })
+      } else {
+        console.warn('视频插入后未找到video元素')
+      }
+    })
+  } catch (error) {
+    console.error('插入视频失败:', error)
+    ElMessage.error('插入视频失败')
+  }
 }
 
 // 显示链接对话框
@@ -465,8 +580,23 @@ defineExpose({
 
 .editor-content video {
   max-width: 100%;
-  margin: 10px 0;
-  border-radius: 4px;
+  height: auto;
+  margin: 16px 0;
+  border-radius: 8px;
+  display: block;
+  background-color: #000;
+}
+
+.editor-content .video-container {
+  margin: 16px 0;
+  max-width: 100%;
+  position: relative;
+}
+
+.editor-content .video-container video {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
 }
 
 .editor-content a {

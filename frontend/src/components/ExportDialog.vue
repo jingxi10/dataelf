@@ -38,6 +38,13 @@
             <div class="format-desc">结构化字段转换为表格数据</div>
           </div>
         </el-radio>
+        
+        <el-radio label="word" size="large">
+          <div class="format-option">
+            <div class="format-title">Word文档</div>
+            <div class="format-desc">导出为Microsoft Word格式(.docx)</div>
+          </div>
+        </el-radio>
       </el-radio-group>
     </div>
 
@@ -63,7 +70,8 @@ import {
   exportAsJsonLd,
   exportAsHtml,
   exportAsMarkdown,
-  exportAsCsv
+  exportAsCsv,
+  exportAsWord
 } from '@/api/content'
 
 const props = defineProps({
@@ -139,6 +147,10 @@ const handleExport = async () => {
       case 'csv':
         response = await exportAsCsv(props.contentId)
         filename = `content-${props.contentId}.csv`
+        break
+      case 'word':
+        response = await exportAsWord(props.contentId)
+        filename = `content-${props.contentId}.docx`
         break
       default:
         throw new Error('不支持的导出格式')

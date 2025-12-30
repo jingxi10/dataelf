@@ -50,7 +50,9 @@
         <div class="card-header">
           <span>用户列表</span>
           <div>
+            <!-- 只有主管理员可以新增管理员 -->
             <el-button
+              v-if="isMainAdmin"
               type="success"
               size="small"
               @click="handleCreateAdmin"
@@ -90,11 +92,12 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="role" label="角色" width="100">
+        <el-table-column prop="role" label="角色" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.role === 'ADMIN' ? 'danger' : 'info'">
-              {{ row.role === 'ADMIN' ? '管理员' : '普通用户' }}
-            </el-tag>
+            <el-tag v-if="row.role === 'USER'" type="info">会员</el-tag>
+            <el-tag v-else-if="row.adminType === 'MAIN_ADMIN'" type="danger">主管理员</el-tag>
+            <el-tag v-else-if="row.adminType === 'NORMAL_ADMIN'" type="warning">普通管理员</el-tag>
+            <el-tag v-else type="info">普通用户</el-tag>
           </template>
         </el-table-column>
 
@@ -122,10 +125,11 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="420" fixed="right">
           <template #default="{ row }">
+            <!-- 批准按钮 - 需要user_approve权限或主管理员 -->
             <el-button
-              v-if="row.status === 'PENDING'"
+              v-if="row.status === 'PENDING' && (isMainAdmin || hasPermission('user_approve'))"
               type="success"
               size="small"
               @click="handleApprove(row)"
@@ -133,13 +137,35 @@
               批准
             </el-button>
 
+            <!-- 延长时长按钮 - 需要user_approve权限或主管理员 -->
             <el-button
-              v-if="row.status === 'APPROVED'"
+              v-if="row.status === 'APPROVED' && (isMainAdmin || hasPermission('user_approve'))"
               type="primary"
               size="small"
               @click="handleExtend(row)"
             >
               延长时长
+            </el-button>
+
+            <!-- 编辑权限按钮 - 只有主管理员可以编辑普通管理员的权限 -->
+            <el-button
+              v-if="isMainAdmin && row.role === 'ADMIN' && row.adminType === 'NORMAL_ADMIN'"
+              type="warning"
+              size="small"
+              @click="handleEditPermissions(row)"
+            >
+              编辑权限
+            </el-button>
+
+            <!-- 删除会员按钮 - 需要user_delete权限或主管理员，且不能删除管理员账号（普通管理员） -->
+            <el-button
+              v-if="(isMainAdmin || hasPermission('user_delete')) && 
+                     (row.role !== 'ADMIN' || (row.role === 'ADMIN' && isMainAdmin))"
+              type="danger"
+              size="small"
+              @click="handleDeleteUser(row)"
+            >
+              删除会员
             </el-button>
 
             <el-button
@@ -286,7 +312,20 @@
           <span v-else>-</span>
         </el-descriptions-item>
         <el-descriptions-item label="批准人" :span="2">
-          {{ currentUser.approvedBy || '-' }}
+          {{ currentUser.approvedByName || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="currentUser.role === 'ADMIN' && currentUser.adminType === 'NORMAL_ADMIN'" label="权限配置" :span="2">
+          <div v-if="currentUser.adminPermissions">
+            <el-tag 
+              v-for="perm in (typeof currentUser.adminPermissions === 'string' ? JSON.parse(currentUser.adminPermissions) : currentUser.adminPermissions)" 
+              :key="perm" 
+              size="small" 
+              style="margin-right: 8px; margin-bottom: 4px;"
+            >
+              {{ getPermissionLabel(perm) }}
+            </el-tag>
+          </div>
+          <span v-else class="text-muted">暂无权限配置</span>
         </el-descriptions-item>
       </el-descriptions>
 
@@ -295,13 +334,56 @@
       </template>
     </el-dialog>
 
+    <!-- 编辑权限对话框 -->
+    <el-dialog
+      v-model="editPermissionsDialogVisible"
+      title="编辑管理员权限"
+      width="600px"
+    >
+      <el-form :model="editPermissionsForm" ref="editPermissionsFormRef" label-width="120px">
+        <el-form-item label="管理员邮箱">
+          <el-input v-model="currentUser.email" disabled />
+        </el-form-item>
+        
+        <el-form-item label="管理员类型">
+          <el-tag type="warning">普通管理员</el-tag>
+        </el-form-item>
+        
+        <el-form-item label="权限菜单">
+          <el-checkbox-group v-model="editPermissionsForm.permissions">
+            <el-checkbox label="user_approve">审核会员（延长时长）</el-checkbox>
+            <el-checkbox label="user_delete">删减会员（删除会员）</el-checkbox>
+            <el-checkbox label="content_review">审核内容</el-checkbox>
+            <el-checkbox label="content_delete">删减内容</el-checkbox>
+            <el-checkbox label="content_view_own">查看自己审核的内容</el-checkbox>
+            <el-checkbox label="content_unpublish_own">下架或删除自己审核的内容</el-checkbox>
+            <el-checkbox label="template_manage">模板管理</el-checkbox>
+            <el-checkbox label="tag_manage">标签管理</el-checkbox>
+            <el-checkbox label="category_manage">分类管理</el-checkbox>
+            <el-checkbox label="data_source_manage">数据源管理</el-checkbox>
+            <el-checkbox label="system_settings">系统设置</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="editPermissionsDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="confirmEditPermissions"
+        >
+          确认保存
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 新增管理员对话框 -->
     <el-dialog
       v-model="createAdminDialogVisible"
       title="新增管理员"
-      width="500px"
+      width="600px"
     >
-      <el-form :model="createAdminForm" :rules="createAdminRules" ref="createAdminFormRef" label-width="100px">
+      <el-form :model="createAdminForm" :rules="createAdminRules" ref="createAdminFormRef" label-width="120px">
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="createAdminForm.email" placeholder="请输入邮箱" />
         </el-form-item>
@@ -317,13 +399,35 @@
         <el-form-item label="确认密码" prop="confirmPassword">
           <el-input v-model="createAdminForm.confirmPassword" type="password" placeholder="请再次输入密码" show-password />
         </el-form-item>
+        
+        <el-form-item label="管理员类型">
+          <el-radio-group v-model="createAdminForm.adminType">
+            <el-radio label="NORMAL_ADMIN">普通管理员</el-radio>
+            <el-radio label="MAIN_ADMIN">主管理员</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <el-form-item v-if="createAdminForm.adminType === 'NORMAL_ADMIN'" label="权限菜单">
+          <el-checkbox-group v-model="createAdminForm.permissions">
+            <el-checkbox label="user_approve">审核会员（延长时长）</el-checkbox>
+            <el-checkbox label="user_delete">删减会员（删除会员）</el-checkbox>
+            <el-checkbox label="content_review">审核内容</el-checkbox>
+            <el-checkbox label="content_delete">删减内容</el-checkbox>
+            <el-checkbox label="content_view_own">查看自己审核的内容</el-checkbox>
+            <el-checkbox label="content_unpublish_own">下架或删除自己审核的内容</el-checkbox>
+            <el-checkbox label="template_manage">模板管理</el-checkbox>
+            <el-checkbox label="tag_manage">标签管理</el-checkbox>
+            <el-checkbox label="category_manage">分类管理</el-checkbox>
+            <el-checkbox label="data_source_manage">数据源管理</el-checkbox>
+            <el-checkbox label="system_settings">系统设置</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="createAdminDialogVisible = false">取消</el-button>
         <el-button
           type="primary"
-          :loading="submitting"
           @click="confirmCreateAdmin"
         >
           确认创建
@@ -334,19 +438,29 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 import {
   getUserList,
   approveUser,
   extendAccount,
-  createAdmin
+  createAdmin,
+  deleteUser,
+  updateAdminPermissions
 } from '@/api/admin'
+
+const authStore = useAuthStore()
+
+// 权限检查
+const isMainAdmin = computed(() => authStore.isMainAdmin)
+const hasPermission = (permission) => authStore.hasPermission(permission)
 
 // 数据状态
 const loading = ref(false)
 const submitting = ref(false)
+const deletingUserId = ref(null) // 正在删除的用户ID
 const userList = ref([])
 
 // 分页
@@ -367,6 +481,7 @@ const approveDialogVisible = ref(false)
 const extendDialogVisible = ref(false)
 const detailDialogVisible = ref(false)
 const createAdminDialogVisible = ref(false)
+const editPermissionsDialogVisible = ref(false)
 
 // 当前操作的用户
 const currentUser = ref({})
@@ -386,7 +501,15 @@ const createAdminForm = reactive({
   email: '',
   phone: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  adminType: 'NORMAL_ADMIN',
+  permissions: []
+})
+
+// 编辑权限表单
+const editPermissionsFormRef = ref(null)
+const editPermissionsForm = reactive({
+  permissions: []
 })
 
 // 新增管理员表单验证规则
@@ -486,10 +609,11 @@ const confirmApprove = async () => {
     await approveUser(currentUser.value.id, approveForm.validDays)
     ElMessage.success('用户批准成功')
     approveDialogVisible.value = false
-    loadUsers()
+    approveForm.validDays = 30 // 重置表单
+    await loadUsers()
   } catch (error) {
     console.error('批准用户失败:', error)
-    ElMessage.error('批准用户失败')
+    ElMessage.error(error.response?.data?.message || '批准用户失败')
   } finally {
     submitting.value = false
   }
@@ -513,10 +637,11 @@ const confirmExtend = async () => {
     await extendAccount(currentUser.value.id, extendForm.days)
     ElMessage.success('账号时长延长成功')
     extendDialogVisible.value = false
-    loadUsers()
+    extendForm.days = 30 // 重置表单
+    await loadUsers()
   } catch (error) {
     console.error('延长账号失败:', error)
-    ElMessage.error('延长账号失败')
+    ElMessage.error(error.response?.data?.message || '延长账号失败')
   } finally {
     submitting.value = false
   }
@@ -528,12 +653,83 @@ const handleViewDetail = (user) => {
   detailDialogVisible.value = true
 }
 
+// 删除用户
+const handleDeleteUser = async (user) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除用户 "${user.email}"？此操作不可恢复！`,
+      '删除用户',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    deletingUserId.value = user.id
+    try {
+      await deleteUser(user.id)
+      ElMessage.success('用户删除成功')
+      loadUsers()
+    } catch (error) {
+      console.error('删除用户失败:', error)
+      ElMessage.error(error.response?.data?.message || '删除用户失败')
+    } finally {
+      deletingUserId.value = null
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除用户失败:', error)
+    }
+  }
+}
+
+// 编辑权限
+const handleEditPermissions = (user) => {
+  currentUser.value = { ...user }
+  // 解析权限列表
+  if (user.adminPermissions) {
+    try {
+      editPermissionsForm.permissions = typeof user.adminPermissions === 'string' 
+        ? JSON.parse(user.adminPermissions) 
+        : user.adminPermissions
+    } catch (e) {
+      console.error('解析权限失败:', e)
+      editPermissionsForm.permissions = []
+    }
+  } else {
+    editPermissionsForm.permissions = []
+  }
+  editPermissionsDialogVisible.value = true
+}
+
+const confirmEditPermissions = async () => {
+  if (!editPermissionsFormRef.value) return
+  
+  submitting.value = true
+  try {
+    await updateAdminPermissions(currentUser.value.id, {
+      permissions: editPermissionsForm.permissions
+    })
+    ElMessage.success('权限更新成功')
+    editPermissionsDialogVisible.value = false
+    loadUsers()
+  } catch (error) {
+    console.error('更新权限失败:', error)
+    ElMessage.error(error.response?.data?.message || '更新权限失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
 // 新增管理员
 const handleCreateAdmin = () => {
   createAdminForm.email = ''
   createAdminForm.phone = ''
   createAdminForm.password = ''
   createAdminForm.confirmPassword = ''
+  createAdminForm.adminType = 'NORMAL_ADMIN'
+  createAdminForm.permissions = []
   createAdminDialogVisible.value = true
 }
 
@@ -548,11 +744,20 @@ const confirmCreateAdmin = async () => {
       await createAdmin({
         email: createAdminForm.email,
         phone: createAdminForm.phone,
-        password: createAdminForm.password
+        password: createAdminForm.password,
+        adminType: createAdminForm.adminType,
+        permissions: createAdminForm.permissions
       })
       ElMessage.success('管理员创建成功')
       createAdminDialogVisible.value = false
-      loadUsers()
+      // 重置表单
+      createAdminForm.email = ''
+      createAdminForm.phone = ''
+      createAdminForm.password = ''
+      createAdminForm.confirmPassword = ''
+      createAdminForm.adminType = 'NORMAL_ADMIN'
+      createAdminForm.permissions = []
+      await loadUsers()
     } catch (error) {
       console.error('创建管理员失败:', error)
       ElMessage.error(error.response?.data?.message || '创建管理员失败')
@@ -625,6 +830,24 @@ const getNewExpireDate = (currentExpiry, days) => {
   return formatDate(date)
 }
 
+// 权限标签映射
+const getPermissionLabel = (permission) => {
+  const labels = {
+    'user_approve': '审核会员',
+    'user_delete': '删减会员',
+    'content_review': '审核内容',
+    'content_delete': '删减内容',
+    'content_view_own': '查看自己审核的内容',
+    'content_unpublish_own': '下架或删除自己审核的内容',
+    'template_manage': '模板管理',
+    'tag_manage': '标签管理',
+    'category_manage': '分类管理',
+    'data_source_manage': '数据源管理',
+    'system_settings': '系统设置'
+  }
+  return labels[permission] || permission
+}
+
 // 初始化
 onMounted(() => {
   loadUsers()
@@ -686,4 +909,5 @@ onMounted(() => {
 .text-danger {
   color: #f56c6c;
 }
+
 </style>

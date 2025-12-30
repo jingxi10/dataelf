@@ -13,7 +13,7 @@
             <template v-if="!editingNickname">
               <span>{{ userInfo.nickname || '未设置' }}</span>
               <el-button type="primary" link @click="startEditNickname">
-                <el-icon><Edit /></el-icon>
+                <el-icon style="animation: none;"><Edit /></el-icon>
                 修改
               </el-button>
             </template>
@@ -40,10 +40,17 @@
         <el-descriptions-item label="手机号">
           {{ userInfo.phone }}
         </el-descriptions-item>
+        <el-descriptions-item label="密码">
+          <el-button type="primary" link @click="showPasswordDialog">
+            <el-icon style="animation: none;"><Lock /></el-icon>
+            修改密码
+          </el-button>
+        </el-descriptions-item>
         <el-descriptions-item label="角色">
-          <el-tag :type="userInfo.role === 'ADMIN' ? 'danger' : 'info'">
-            {{ userInfo.role === 'ADMIN' ? '管理员' : '普通用户' }}
-          </el-tag>
+          <el-tag v-if="userInfo.role === 'USER'" type="info">会员</el-tag>
+          <el-tag v-else-if="userInfo.adminType === 'MAIN_ADMIN'" type="danger">主管理员</el-tag>
+          <el-tag v-else-if="userInfo.adminType === 'NORMAL_ADMIN'" type="warning">普通管理员</el-tag>
+          <el-tag v-else type="info">普通用户</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="账号状态">
           <el-tag :type="getStatusType(userInfo.status)">
@@ -63,13 +70,38 @@
         </el-descriptions-item>
       </el-descriptions>
     </el-card>
+
+    <!-- 修改密码对话框 -->
+    <el-dialog
+      v-model="passwordDialogVisible"
+      title="修改密码"
+      width="450px"
+    >
+      <el-form :model="passwordForm" :rules="passwordRules" ref="passwordFormRef" label-width="100px">
+        <el-form-item label="旧密码" prop="oldPassword">
+          <el-input v-model="passwordForm.oldPassword" type="password" placeholder="请输入旧密码" show-password />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" show-password />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitPassword" :loading="savingPassword">
+          确认修改
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Edit } from '@element-plus/icons-vue'
+import { Edit, Lock } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import axios from '@/api/axios'
 
@@ -79,6 +111,9 @@ const loading = ref(false)
 const saving = ref(false)
 const editingNickname = ref(false)
 const newNickname = ref('')
+const passwordDialogVisible = ref(false)
+const savingPassword = ref(false)
+const passwordFormRef = ref(null)
 
 const userInfo = reactive({
   id: '',
@@ -91,13 +126,40 @@ const userInfo = reactive({
   expiresAt: ''
 })
 
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const validateConfirmPassword = (rule, value, callback) => {
+  if (value !== passwordForm.newPassword) {
+    callback(new Error('两次输入的密码不一致'))
+  } else {
+    callback()
+  }
+}
+
+const passwordRules = {
+  oldPassword: [
+    { required: true, message: '请输入旧密码', trigger: 'blur' }
+  ],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 50, message: '密码长度必须在6-50位之间', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    { validator: validateConfirmPassword, trigger: 'blur' }
+  ]
+}
+
 const loadProfile = async () => {
   loading.value = true
   try {
     const response = await axios.get('/user/profile')
     const data = response.data || response
     Object.assign(userInfo, data)
-    // 同步更新 authStore
     if (authStore.user) {
       authStore.user.nickname = data.nickname
     }
@@ -125,7 +187,6 @@ const saveNickname = async () => {
     const response = await axios.put('/user/nickname', { nickname: newNickname.value })
     const data = response.data || response
     userInfo.nickname = data.nickname
-    // 同步更新 authStore
     if (authStore.user) {
       authStore.user.nickname = data.nickname
     }
@@ -137,6 +198,36 @@ const saveNickname = async () => {
   } finally {
     saving.value = false
   }
+}
+
+const showPasswordDialog = () => {
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+  passwordDialogVisible.value = true
+}
+
+const submitPassword = async () => {
+  if (!passwordFormRef.value) return
+  
+  await passwordFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    
+    savingPassword.value = true
+    try {
+      await axios.put('/user/password', {
+        oldPassword: passwordForm.oldPassword,
+        newPassword: passwordForm.newPassword
+      })
+      ElMessage.success('密码修改成功')
+      passwordDialogVisible.value = false
+    } catch (error) {
+      console.error('修改密码失败:', error)
+      ElMessage.error(error.response?.data?.message || '修改密码失败')
+    } finally {
+      savingPassword.value = false
+    }
+  })
 }
 
 const getStatusType = (status) => {

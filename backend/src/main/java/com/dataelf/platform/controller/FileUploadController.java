@@ -63,15 +63,20 @@ public class FileUploadController {
      * 上传视频
      */
     @PostMapping("/video")
-    @Operation(summary = "上传视频", description = "上传视频文件，支持 MP4、WebM、OGG 格式")
+    @Operation(summary = "上传视频", description = "上传视频文件，支持 MP4、WebM、OGG、AVI、MKV 格式，最大100MB")
     public ResponseEntity<Map<String, Object>> uploadVideo(
             HttpServletRequest request,
             @RequestParam("file") MultipartFile file
     ) {
         Long userId = getUserIdFromRequest(request);
         
+        log.info("User {} uploading video: {} ({} bytes, type: {})", 
+                userId, file.getOriginalFilename(), file.getSize(), file.getContentType());
+        
         try {
             String url = fileUploadService.uploadVideo(file, userId);
+            
+            log.info("Video uploaded successfully: {}", url);
             
             Map<String, Object> data = new HashMap<>();
             data.put("url", url);
@@ -85,9 +90,13 @@ public class FileUploadController {
             response.put("message", "视频上传成功");
             
             return ResponseEntity.ok(response);
-        } catch (IOException e) {
-            log.error("Failed to upload video", e);
-            return buildErrorResponse("视频上传失败: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to upload video: {}", file.getOriginalFilename(), e);
+            String errorMessage = e.getMessage();
+            if (errorMessage == null || errorMessage.isEmpty()) {
+                errorMessage = "视频上传失败，请检查文件格式和大小";
+            }
+            return buildErrorResponse(errorMessage);
         }
     }
     

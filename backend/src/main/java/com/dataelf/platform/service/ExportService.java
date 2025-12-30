@@ -12,6 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.apache.poi.xwpf.usermodel.*;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTblWidth;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STTblWidth;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -300,5 +304,158 @@ public class ExportService {
         }
         
         return value;
+    }
+    
+    /**
+     * Export content as Word document (DOCX format)
+     */
+    public byte[] exportAsWord(Long contentId) {
+        log.info("Exporting content {} as Word document", contentId);
+        
+        Content content = contentRepository.findById(contentId)
+            .orElse(null);
+        
+        if (content == null) {
+            throw new ValidationException("内容不存在");
+        }
+        
+        Template template = templateRepository.findById(content.getTemplateId())
+            .orElse(null);
+        
+        if (template == null) {
+            throw new ValidationException("模板不存在");
+        }
+        
+        try {
+            Map<String, Object> structuredData = objectMapper.readValue(
+                content.getStructuredData(), 
+                Map.class
+            );
+            
+            Map<String, Object> schemaDefinition = objectMapper.readValue(
+                template.getSchemaDefinition(), 
+                Map.class
+            );
+            
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> fields = (List<Map<String, Object>>) schemaDefinition.get("fields");
+            
+            // Create Word document
+            XWPFDocument document = new XWPFDocument();
+            
+            // Add title
+            XWPFParagraph titlePara = document.createParagraph();
+            titlePara.setAlignment(ParagraphAlignment.CENTER);
+            XWPFRun titleRun = titlePara.createRun();
+            titleRun.setText(content.getTitle());
+            titleRun.setBold(true);
+            titleRun.setFontSize(20);
+            titleRun.setFontFamily("宋体");
+            
+            // Add spacing after title
+            titlePara.setSpacingAfter(400);
+            
+            // Add structured data fields
+            if (fields != null && !fields.isEmpty()) {
+                for (Map<String, Object> field : fields) {
+                    String fieldName = (String) field.get("name");
+                    String fieldLabel = (String) field.getOrDefault("label", fieldName);
+                    Object value = structuredData.get(fieldName);
+                    
+                    if (value != null && !value.toString().trim().isEmpty()) {
+                        // Field label
+                        XWPFParagraph labelPara = document.createParagraph();
+                        XWPFRun labelRun = labelPara.createRun();
+                        labelRun.setText(fieldLabel + "：");
+                        labelRun.setBold(true);
+                        labelRun.setFontSize(14);
+                        labelRun.setFontFamily("宋体");
+                        
+                        // Field value
+                        XWPFParagraph valuePara = document.createParagraph();
+                        XWPFRun valueRun = valuePara.createRun();
+                        String valueText = value.toString();
+                        // Remove HTML tags if present
+                        valueText = valueText.replaceAll("<[^>]+>", "");
+                        valueRun.setText(valueText);
+                        valueRun.setFontSize(12);
+                        valueRun.setFontFamily("宋体");
+                        
+                        // Add spacing
+                        valuePara.setSpacingAfter(200);
+                    }
+                }
+            }
+            
+            // Add copyright section
+            if (content.getAuthorName() != null || content.getContentSource() != null || 
+                content.getCopyrightNotice() != null) {
+                // Add separator
+                XWPFParagraph separatorPara = document.createParagraph();
+                separatorPara.setSpacingAfter(200);
+                
+                // Copyright title
+                XWPFParagraph copyrightTitlePara = document.createParagraph();
+                XWPFRun copyrightTitleRun = copyrightTitlePara.createRun();
+                copyrightTitleRun.setText("版权信息");
+                copyrightTitleRun.setBold(true);
+                copyrightTitleRun.setFontSize(14);
+                copyrightTitleRun.setFontFamily("宋体");
+                copyrightTitlePara.setSpacingAfter(200);
+                
+                // Author
+                if (content.getAuthorName() != null) {
+                    XWPFParagraph authorPara = document.createParagraph();
+                    XWPFRun authorRun = authorPara.createRun();
+                    authorRun.setText("作者：" + content.getAuthorName());
+                    authorRun.setFontSize(12);
+                    authorRun.setFontFamily("宋体");
+                    authorPara.setSpacingAfter(100);
+                }
+                
+                // Source
+                if (content.getContentSource() != null) {
+                    XWPFParagraph sourcePara = document.createParagraph();
+                    XWPFRun sourceRun = sourcePara.createRun();
+                    sourceRun.setText("来源：" + content.getContentSource());
+                    sourceRun.setFontSize(12);
+                    sourceRun.setFontFamily("宋体");
+                    sourcePara.setSpacingAfter(100);
+                }
+                
+                // Copyright notice
+                if (content.getCopyrightNotice() != null) {
+                    XWPFParagraph noticePara = document.createParagraph();
+                    XWPFRun noticeRun = noticePara.createRun();
+                    noticeRun.setText("版权声明：" + content.getCopyrightNotice());
+                    noticeRun.setFontSize(12);
+                    noticeRun.setFontFamily("宋体");
+                    noticePara.setSpacingAfter(100);
+                }
+                
+                // Original flag
+                if (content.getIsOriginal() != null) {
+                    XWPFParagraph originalPara = document.createParagraph();
+                    XWPFRun originalRun = originalPara.createRun();
+                    originalRun.setText("原创：" + (content.getIsOriginal() ? "是" : "否"));
+                    originalRun.setFontSize(12);
+                    originalRun.setFontFamily("宋体");
+                }
+            }
+            
+            // Write to byte array
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            document.write(outputStream);
+            document.close();
+            
+            return outputStream.toByteArray();
+            
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse content data for Word export: {}", e.getMessage());
+            throw new ValidationException("内容数据解析失败: " + e.getMessage());
+        } catch (IOException e) {
+            log.error("Failed to generate Word document: {}", e.getMessage());
+            throw new ValidationException("Word文档生成失败: " + e.getMessage());
+        }
     }
 }

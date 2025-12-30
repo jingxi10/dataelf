@@ -95,6 +95,9 @@ public class SystemConfigService {
         result.put("heroTextColor", getConfigValue("site.hero.textColor", ""));
         result.put("footerLinks", getConfigValue("site.footer.links", getDefaultFooterLinks()));
         result.put("footerBottomLinks", getConfigValue("site.footer.bottomLinks", getDefaultFooterBottomLinks()));
+        result.put("footerIcp", getConfigValue("site.footer.icp", ""));
+        result.put("footerCopyright", getConfigValue("site.footer.copyright", ""));
+        result.put("socialLinks", getConfigValue("site.social.links", getDefaultSocialLinks()));
         
         return result;
     }
@@ -105,6 +108,10 @@ public class SystemConfigService {
     
     private String getDefaultFooterBottomLinks() {
         return "[{\"name\":\"网站地图\",\"url\":\"#\"},{\"name\":\"AI数据接口\",\"url\":\"#\"},{\"name\":\"机器人协议\",\"url\":\"#\"}]";
+    }
+    
+    private String getDefaultSocialLinks() {
+        return "{\"share\":\"#\",\"comment\":\"#\",\"link\":\"#\"}";
     }
     
     @Transactional

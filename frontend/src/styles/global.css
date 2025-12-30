@@ -411,6 +411,23 @@ th {
   animation: spin 1s linear infinite;
 }
 
+/* 禁用所有按钮的动态效果 */
+.el-button {
+  transition: none !important;
+}
+
+.el-button:hover {
+  transform: none !important;
+}
+
+.el-button:active {
+  transform: none !important;
+}
+
+.el-button:focus {
+  transform: none !important;
+}
+
 /* 禁用 Element Plus 按钮的 loading 旋转动画 */
 .el-button .el-icon.is-loading {
   animation: none !important;
@@ -424,9 +441,18 @@ th {
   display: none !important;
 }
 
+.el-button.is-loading {
+  pointer-events: auto !important;
+}
+
 /* 禁用所有按钮内图标的旋转动画 */
 .el-button .el-icon {
   animation: none !important;
+}
+
+/* 禁用按钮的 ripple 效果 */
+.el-button::after {
+  display: none !important;
 }
 
 /* 淡入动画 */

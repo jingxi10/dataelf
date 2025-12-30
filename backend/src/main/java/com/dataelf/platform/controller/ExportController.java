@@ -84,4 +84,21 @@ public class ExportController {
         
         return new ResponseEntity<>(csv, headers, HttpStatus.OK);
     }
+    
+    /**
+     * Export content as Word document (DOCX)
+     * GET /api/export/{contentId}/word
+     */
+    @GetMapping("/{contentId}/word")
+    public ResponseEntity<byte[]> exportWord(@PathVariable Long contentId) {
+        log.info("Export Word document request for content: {}", contentId);
+        
+        byte[] wordDoc = exportService.exportAsWord(contentId);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+        headers.setContentDispositionFormData("attachment", "content-" + contentId + ".docx");
+        
+        return new ResponseEntity<>(wordDoc, headers, HttpStatus.OK);
+    }
 }

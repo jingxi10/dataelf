@@ -44,9 +44,10 @@
 
     <div v-else class="comment-list">
       <div
-        v-for="comment in comments"
+        v-for="comment in sortedComments"
         :key="comment.id"
         class="comment-item"
+        :class="{ 'pinned': comment.isPinned }"
       >
         <div class="comment-avatar">
           <el-icon><User /></el-icon>
@@ -54,9 +55,37 @@
         <div class="comment-content">
           <div class="comment-meta">
             <span class="comment-author">{{ comment.userEmail || '匿名用户' }}</span>
+            <el-tag v-if="comment.isPinned" type="danger" size="small" class="pinned-tag">
+              <el-icon><Top /></el-icon>
+              置顶
+            </el-tag>
             <span class="comment-time">{{ formatTime(comment.createdAt) }}</span>
           </div>
           <div class="comment-text">{{ comment.commentText }}</div>
+          
+          <!-- 操作按钮 -->
+          <div v-if="canOperate(comment)" class="comment-actions">
+            <!-- 管理员置顶按钮 -->
+            <el-button
+              v-if="isAdmin"
+              :type="comment.isPinned ? 'warning' : 'default'"
+              size="small"
+              :icon="Top"
+              @click="handleTogglePin(comment)"
+            >
+              {{ comment.isPinned ? '取消置顶' : '置顶' }}
+            </el-button>
+            <!-- 删除按钮（管理员或作者） -->
+            <el-button
+              v-if="canDelete(comment)"
+              type="danger"
+              size="small"
+              :icon="Delete"
+              @click="handleDelete(comment)"
+            >
+              删除
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
@@ -76,10 +105,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Loading, User } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loading, User, Delete, Top } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { createComment, getCommentsByContent, getCommentCount } from '@/api/comment'
+import { createComment, getCommentsByContent, deleteComment, togglePinComment } from '@/api/comment'
 
 const props = defineProps({
   contentId: {
@@ -90,6 +119,8 @@ const props = defineProps({
 
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const isAdmin = computed(() => authStore.isAdmin)
+const currentUserId = computed(() => authStore.user?.id)
 
 const commentText = ref('')
 const comments = ref([])
@@ -144,6 +175,64 @@ const submitComment = async () => {
     ElMessage.error(error.response?.data?.error?.message || '评论发表失败')
   } finally {
     submitting.value = false
+  }
+}
+
+// 按置顶状态排序评论
+const sortedComments = computed(() => {
+  return [...comments.value].sort((a, b) => {
+    // 置顶的评论排在前面
+    if (a.isPinned && !b.isPinned) return -1
+    if (!a.isPinned && b.isPinned) return 1
+    // 其他按创建时间倒序
+    return new Date(b.createdAt) - new Date(a.createdAt)
+  })
+})
+
+// 检查是否可以操作评论
+const canOperate = (comment) => {
+  return isAdmin.value || comment.userId === currentUserId.value
+}
+
+// 检查是否可以删除评论
+const canDelete = (comment) => {
+  return isAdmin.value || comment.userId === currentUserId.value
+}
+
+// 删除评论
+const handleDelete = async (comment) => {
+  try {
+    await ElMessageBox.confirm(
+      '确认删除此评论？删除后无法恢复。',
+      '删除评论',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    await deleteComment(comment.id)
+    ElMessage.success('评论已删除')
+    await loadComments(currentPage.value)
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除评论失败:', error)
+      ElMessage.error(error.response?.data?.message || '删除评论失败')
+    }
+  }
+}
+
+// 置顶/取消置顶评论
+const handleTogglePin = async (comment) => {
+  try {
+    const newPinStatus = !comment.isPinned
+    await togglePinComment(comment.id, newPinStatus)
+    ElMessage.success(newPinStatus ? '评论已置顶' : '已取消置顶')
+    await loadComments(currentPage.value)
+  } catch (error) {
+    console.error('置顶操作失败:', error)
+    ElMessage.error(error.response?.data?.message || '置顶操作失败')
   }
 }
 
@@ -268,6 +357,12 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+.comment-item.pinned {
+  background: #FFF7E6;
+  border-color: #FFD700;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.1);
+}
+
 .comment-avatar {
   width: 40px;
   height: 40px;
@@ -291,13 +386,20 @@ onMounted(() => {
 .comment-meta {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .comment-author {
   font-weight: 500;
   color: #333;
+}
+
+.pinned-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .comment-time {
@@ -310,6 +412,13 @@ onMounted(() => {
   line-height: 1.6;
   white-space: pre-wrap;
   word-wrap: break-word;
+  margin-bottom: 0.75rem;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .comment-pagination {

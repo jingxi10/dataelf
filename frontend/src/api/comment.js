@@ -27,3 +27,22 @@ export function getCommentsByContent(contentId, params) {
 export function getCommentCount(contentId) {
   return axios.get(`/public/comments/content/${contentId}/count`)
 }
+
+/**
+ * 删除评论
+ * @param {number} commentId - 评论ID
+ * @returns {Promise}
+ */
+export function deleteComment(commentId) {
+  return axios.delete(`/user/comments/${commentId}`)
+}
+
+/**
+ * 置顶/取消置顶评论（管理员）
+ * @param {number} commentId - 评论ID
+ * @param {boolean} pin - 是否置顶
+ * @returns {Promise}
+ */
+export function togglePinComment(commentId, pin) {
+  return axios.post(`/admin/comments/${commentId}/pin`, { pin })
+}

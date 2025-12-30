@@ -77,6 +77,26 @@ export function getUserDetail(userId) {
 }
 
 /**
+ * 删除用户
+ * @param {number} userId - 用户ID
+ * @returns {Promise}
+ */
+export function deleteUser(userId) {
+  return axios.delete(`/admin/users/${userId}`)
+}
+
+/**
+ * 更新管理员权限
+ * @param {number} userId - 用户ID
+ * @param {Object} data - 权限数据
+ * @param {Array<string>} data.permissions - 权限列表
+ * @returns {Promise}
+ */
+export function updateAdminPermissions(userId, data) {
+  return axios.put(`/admin/users/${userId}/permissions`, data)
+}
+
+/**
  * 获取审核队列
  * @param {Object} params - 查询参数
  * @param {number} params.page - 页码
@@ -122,4 +142,45 @@ export function directPublish(contentId) {
  */
 export function checkIntegrity(contentId) {
   return axios.get(`/admin/content/${contentId}/integrity`)
+}
+
+/**
+ * 获取所有内容（主管理员）
+ * @param {Object} params - 查询参数
+ * @param {number} params.page - 页码
+ * @param {number} params.size - 每页数量
+ * @param {string} params.status - 状态筛选
+ * @param {string} params.search - 搜索关键词
+ * @returns {Promise}
+ */
+export function getAllContents(params) {
+  return axios.get('/admin/content/all', { params })
+}
+
+/**
+ * 管理员删除内容（主管理员）
+ * @param {number} contentId - 内容ID
+ * @returns {Promise}
+ */
+export function adminDeleteContent(contentId) {
+  return axios.delete(`/admin/content/${contentId}`)
+}
+
+/**
+ * 管理员下架内容（主管理员）
+ * @param {number} contentId - 内容ID
+ * @param {Object} data - 下架数据
+ * @param {string} data.reason - 下架原因
+ * @returns {Promise}
+ */
+export function adminUnpublishContent(contentId, data) {
+  return axios.post(`/admin/content/${contentId}/unpublish`, data)
+}
+
+/**
+ * 获取审核统计信息
+ * @returns {Promise}
+ */
+export function getReviewStatistics() {
+  return axios.get('/admin/content/review-statistics')
 }

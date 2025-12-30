@@ -2,6 +2,7 @@ package com.dataelf.platform.controller;
 
 import com.dataelf.platform.dto.ContentDTO;
 import com.dataelf.platform.dto.UpdateNicknameRequest;
+import com.dataelf.platform.dto.UpdatePasswordRequest;
 import com.dataelf.platform.dto.UserDTO;
 import com.dataelf.platform.entity.Content;
 import com.dataelf.platform.entity.User;
@@ -14,11 +15,13 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,6 +45,13 @@ public class UserController {
     private final ContentRepository contentRepository;
     private final ContentService contentService;
     private final JwtUtil jwtUtil;
+    
+    @Value("${app.password.bcrypt-strength:10}")
+    private int bcryptStrength;
+    
+    private BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(bcryptStrength);
+    }
     
     private Long getUserIdFromRequest(HttpServletRequest request) {
         String token = request.getHeader("Authorization");
@@ -86,6 +96,37 @@ public class UserController {
         response.put("success", true);
         response.put("message", "昵称更新成功");
         response.put("data", UserDTO.fromEntity(user));
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PutMapping("/password")
+    @Operation(summary = "修改密码", description = "修改当前用户的密码")
+    public ResponseEntity<Map<String, Object>> updatePassword(
+            @Valid @RequestBody UpdatePasswordRequest request,
+            HttpServletRequest httpRequest) {
+        
+        Long userId = getUserIdFromRequest(httpRequest);
+        log.info("User {} updating password", userId);
+        
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        // 验证旧密码
+        if (!passwordEncoder().matches(request.getOldPassword(), user.getPasswordHash())) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "旧密码不正确");
+            return ResponseEntity.badRequest().body(response);
+        }
+        
+        // 更新密码
+        user.setPasswordHash(passwordEncoder().encode(request.getNewPassword()));
+        userRepository.save(user);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "密码修改成功");
         
         return ResponseEntity.ok(response);
     }

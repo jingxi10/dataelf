@@ -310,6 +310,34 @@ public class ContentController {
         return ResponseEntity.ok(response);
     }
     
+    /**
+     * 用户下架自己发布的内容
+     */
+    @PostMapping("/{id}/unpublish")
+    public ResponseEntity<Map<String, Object>> unpublishContent(
+        @PathVariable Long id,
+        HttpServletRequest httpRequest
+    ) {
+        Long userId = getUserIdFromToken(httpRequest);
+        
+        // Verify ownership
+        ContentDTO content = contentService.getContent(id);
+        if (!content.getUserId().equals(userId)) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", Map.of("message", "无权限下架此内容"));
+            return ResponseEntity.status(403).body(response);
+        }
+        
+        contentService.unpublishContent(id);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "内容已下架");
+        
+        return ResponseEntity.ok(response);
+    }
+    
     private Long getUserIdFromToken(HttpServletRequest request) {
         String token = request.getHeader("Authorization");
         if (token != null && token.startsWith("Bearer ")) {

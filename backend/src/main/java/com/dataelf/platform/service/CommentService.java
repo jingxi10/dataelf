@@ -54,14 +54,69 @@ public class CommentService {
             throw new ValidationException("内容不存在");
         }
         
-        Page<Comment> comments = commentRepository.findByContentIdOrderByCreatedAtDesc(contentId, pageable);
+        // 只返回未删除的评论，置顶的在前
+        Page<Comment> comments = commentRepository.findByContentIdAndIsDeletedFalseOrderByIsPinnedDescCreatedAtDesc(contentId, pageable);
         
         return comments.map(this::convertToDTO);
     }
     
     @Transactional(readOnly = true)
     public Long getCommentCount(Long contentId) {
-        return commentRepository.countByContentId(contentId);
+        // 只统计未删除的评论
+        return commentRepository.countByContentIdAndIsDeletedFalse(contentId);
+    }
+    
+    /**
+     * 删除评论
+     * 权限规则：
+     * 1. 评论作者可以删除自己的评论
+     * 2. 文章作者可以删除自己文章下的所有评论
+     * 3. 主管理员可以删除所有评论
+     */
+    @Transactional
+    public void deleteComment(Long commentId, Long userId, boolean isAdmin) {
+        Comment comment = commentRepository.findById(commentId)
+            .orElseThrow(() -> new ValidationException("评论不存在"));
+        
+        // 检查是否是评论作者
+        boolean isCommentAuthor = comment.getUserId().equals(userId);
+        
+        // 检查是否是文章作者
+        Content content = contentRepository.findById(comment.getContentId())
+            .orElseThrow(() -> new ValidationException("内容不存在"));
+        boolean isContentAuthor = content.getUserId().equals(userId);
+        
+        // 检查是否是主管理员
+        boolean isMainAdmin = false;
+        if (isAdmin) {
+            User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ValidationException("用户不存在"));
+            isMainAdmin = user.getRole() == User.UserRole.ADMIN && 
+                         user.getAdminType() == User.AdminType.MAIN_ADMIN;
+        }
+        
+        // 权限检查：评论作者、文章作者或主管理员可以删除
+        if (!isCommentAuthor && !isContentAuthor && !isMainAdmin) {
+            throw new ValidationException("无权限删除此评论");
+        }
+        
+        comment.setIsDeleted(true);
+        commentRepository.save(comment);
+        log.info("Comment {} deleted by user {} (isCommentAuthor: {}, isContentAuthor: {}, isMainAdmin: {})", 
+            commentId, userId, isCommentAuthor, isContentAuthor, isMainAdmin);
+    }
+    
+    /**
+     * 置顶/取消置顶评论（管理员权限）
+     */
+    @Transactional
+    public void togglePinComment(Long commentId, boolean pin) {
+        Comment comment = commentRepository.findById(commentId)
+            .orElseThrow(() -> new ValidationException("评论不存在"));
+        
+        comment.setIsPinned(pin);
+        commentRepository.save(comment);
+        log.info("Comment {} pin status set to {}", commentId, pin);
     }
     
     private CommentDTO convertToDTO(Comment comment) {
@@ -71,6 +126,8 @@ public class CommentService {
         dto.setContentId(comment.getContentId());
         dto.setCommentText(comment.getCommentText());
         dto.setCreatedAt(comment.getCreatedAt());
+        dto.setIsPinned(comment.getIsPinned());
+        dto.setIsDeleted(comment.getIsDeleted());
         
         // 可选：添加用户邮箱信息
         userRepository.findById(comment.getUserId()).ifPresent(user -> {

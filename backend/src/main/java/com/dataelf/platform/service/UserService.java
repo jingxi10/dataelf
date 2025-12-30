@@ -227,6 +227,74 @@ public class UserService {
     }
     
     /**
+     * 减少账号时长
+     */
+    @Transactional
+    @CacheEvict(value = "user-sessions", key = "'validity_' + #userId")
+    public void reduceAccountDays(Long userId, Integer days) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ValidationException("用户不存在"));
+        
+        if (user.getExpiresAt() == null) {
+            throw new ValidationException("该账号没有设置过期时间，无法减少时长");
+        }
+        
+        LocalDateTime newExpiryDate = user.getExpiresAt().minusDays(days);
+        
+        // 如果减少后过期时间早于当前时间，设置为当前时间
+        if (newExpiryDate.isBefore(LocalDateTime.now())) {
+            newExpiryDate = LocalDateTime.now();
+        }
+        
+        user.setExpiresAt(newExpiryDate);
+        userRepository.save(user);
+        log.info("User {} account reduced by {} days, new expiry: {}", userId, days, newExpiryDate);
+    }
+    
+    /**
+     * 停用账号（设置为EXPIRED状态）
+     */
+    @Transactional
+    @CacheEvict(value = "user-sessions", key = "'validity_' + #userId")
+    public void disableAccount(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ValidationException("用户不存在"));
+        
+        user.setStatus(User.UserStatus.EXPIRED);
+        user.setExpiresAt(LocalDateTime.now());
+        userRepository.save(user);
+        log.info("User {} account disabled", userId);
+    }
+    
+    /**
+     * 删除会员（管理员权限）
+     */
+    @Transactional
+    @CacheEvict(value = "user-sessions", key = "'validity_' + #userId")
+    public void deleteUser(Long userId, Long adminId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ValidationException("用户不存在"));
+        
+        // 检查是否是管理员
+        if (user.getRole() == User.UserRole.ADMIN) {
+            // 检查是否是主管理员
+            if (user.getAdminType() == User.AdminType.MAIN_ADMIN) {
+                throw new ValidationException("不能删除主管理员账号");
+            }
+            
+            // 检查当前操作者是否是主管理员
+            User admin = userRepository.findById(adminId)
+                    .orElseThrow(() -> new ValidationException("管理员不存在"));
+            if (admin.getAdminType() != User.AdminType.MAIN_ADMIN) {
+                throw new ValidationException("普通管理员不能删除管理员账号");
+            }
+        }
+        
+        userRepository.delete(user);
+        log.info("User {} deleted by admin {}", userId, adminId);
+    }
+    
+    /**
      * 根据Token获取用户信息
      */
     public UserDTO getUserFromToken(String token) {

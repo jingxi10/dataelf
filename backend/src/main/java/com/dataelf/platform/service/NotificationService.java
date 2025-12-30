@@ -6,13 +6,17 @@ import com.dataelf.platform.entity.Notification.NotificationType;
 import com.dataelf.platform.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,8 +28,22 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final JavaMailSender mailSender;
     
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
+    
     @Value("${spring.mail.username:}")
     private String fromEmail;
+    
+    /**
+     * 获取发件人显示名称（从系统配置读取，默认为"数流精灵"）
+     */
+    private String getFromName() {
+        if (systemConfigService != null) {
+            String name = systemConfigService.getConfigValue("mail.from.name", "数流精灵");
+            return name != null && !name.isEmpty() ? name : "数流精灵";
+        }
+        return "数流精灵";
+    }
     
     /**
      * 发送邮件（内部方法，同步）
@@ -36,17 +54,23 @@ public class NotificationService {
                 log.warn("Mail not configured, skipping email to: {}", to);
                 return;
             }
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(content);
             
-            mailSender.send(message);
-            log.info("Email sent successfully to: {}", to);
+            // 使用 MimeMessage 支持中文发件人名称
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            
+            // 设置发件人（带中文名称）
+            String fromName = getFromName();
+            helper.setFrom(new InternetAddress(fromEmail, fromName, "UTF-8"));
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(content, false); // false 表示纯文本
+            
+            mailSender.send(mimeMessage);
+            log.info("Email sent successfully to: {} from: {} <{}>", to, fromName, fromEmail);
         } catch (Exception e) {
             System.out.println("errormail:"+e.getMessage());
-            log.error("Failed to send email to: {},merror:{}", to, e.getCause());
+            log.error("Failed to send email to: {}, error: {}", to, e.getMessage(), e);
         }
     }
     

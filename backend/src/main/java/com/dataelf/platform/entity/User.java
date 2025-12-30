@@ -42,6 +42,10 @@ public class User {
     private UserRole role = UserRole.USER;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "admin_type", length = 20)
+    private AdminType adminType;
+
+    @Enumerated(EnumType.STRING)
     @Column(
             nullable = false,
             length = 20,
@@ -63,6 +67,9 @@ public class User {
     @Column(name = "approved_by")
     private Long approvedBy;
 
+    @Column(name = "admin_permissions", columnDefinition = "JSON")
+    private String adminPermissions; // JSON格式存储权限菜单配置，如：["user_approve", "user_delete", "content_review", "content_delete"]
+
     public enum UserStatus {
         PENDING,
         APPROVED,
@@ -73,5 +80,10 @@ public class User {
     public enum UserRole {
         USER,
         ADMIN
+    }
+    
+    public enum AdminType {
+        MAIN_ADMIN,    // 主管理员
+        NORMAL_ADMIN   // 普通管理员
     }
 }
